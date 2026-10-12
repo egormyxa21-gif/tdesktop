@@ -107,8 +107,7 @@ jobs:
             !${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\*
             !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-${{ runner.arch }}-ghostgram-libs-v2-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-${{ runner.arch }}-ghostgram-libs-v2-
+          key: ${{ runner.OS }}-${{ runner.arch }}-ghostgram-libs-v3-${{ env.CACHE_KEY }}
 
       - name: Qt cache.
         uses: actions/cache@v6
@@ -125,7 +124,18 @@ jobs:
 
       - name: Free up some disk space.
         shell: bash
-        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' ')' -type f ')' -o -empty ')' -delete
+        # The generated binding must survive: the external target compiles it.
+        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' -o -path '*/tdesktop_rust/out/src/*' ')' -type f ')' -o -empty ')' -delete
+
+      - name: Check wallet_engine.cpp.
+        shell: pwsh
+        run: |
+          $f = Join-Path $env:LibrariesPath 'tdesktop_rust\out\src\wallet_engine\wallet_engine.cpp'
+          if (-not (Test-Path -LiteralPath $f)) {
+            Write-Output "::error::Missing $f. cmake/external/wallet_engine/CMakeLists.txt needs it for external_wallet_engine; configure is not started."
+            exit 1
+          }
+          Write-Output "Found $f"
 
       # No warnings-as-errors: this run only needs a working test exe.
       - name: GhostGram build.
