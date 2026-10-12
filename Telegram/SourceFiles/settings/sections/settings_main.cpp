@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_faq_suggestions.h"
 #include "settings/sections/settings_credits.h"
 #include "settings/sections/settings_folders.h"
+#include "settings/sections/settings_ghostgram.h"
 #include "settings/sections/settings_information.h"
 #include "settings/sections/settings_notifications.h"
 #include "settings/settings_power_saving.h"
@@ -446,6 +447,13 @@ void BuildSectionButtons(SectionBuilder &builder) {
 		.targetSection = CallsId(),
 		.icon = { &st::menuIconUnmute },
 		.keywords = { u"sessions"_q, u"calls"_q },
+	});
+
+	builder.addSectionButton({
+		.title = tr::lng_settings_ghostgram(),
+		.targetSection = GhostGramId(),
+		.icon = { &st::menuIconStealth },
+		.keywords = { u"ghostgram"_q, u"ghost"_q },
 	});
 
 	builder.addButton({

@@ -44,6 +44,8 @@ jobs:
 
   macos:
     name: MacOS
+    # The fork builds only through ghostgram-build.yml.
+    if: github.repository == 'telegramdesktop/tdesktop'
     runs-on: ${{ (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/nightly') && 'depot-macos-latest' || 'macos-latest' }}
 
     strategy:

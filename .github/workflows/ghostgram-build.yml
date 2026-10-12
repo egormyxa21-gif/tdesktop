@@ -1,0 +1,167 @@
+name: GhostGram build.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ghostgram-build-windows-x64
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+
+  windows:
+    name: Windows x64 Debug
+    # The official repository builds through win.yml.
+    if: github.repository != 'telegramdesktop/tdesktop'
+    runs-on: windows-latest
+    timeout-minutes: 360
+
+    env:
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      # The stock image keeps tens of GB of toolchains this build never uses.
+      - name: Free runner disk space.
+        shell: pwsh
+        run: |
+          $targets = @(
+            'C:\Android',
+            'C:\ms-playwright',
+            'C:\ghcup',
+            'C:\Program Files\dotnet',
+            'C:\Program Files\Haskell Stack'
+          )
+          foreach ($t in $targets) {
+            if (Test-Path -LiteralPath $t) {
+              Remove-Item -LiteralPath $t -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+          Write-Output ('C free GB: ' + [math]::Round((Get-PSDrive C).Free / 1GB, 1))
+
+      - name: Prepare directories.
+        run: |
+          mkdir %userprofile%\TBuild\Libraries
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+
+      - name: Get repository name.
+        shell: bash
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: First set up.
+        shell: bash
+        run: |
+          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
+          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+
+          sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
+
+          echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
+
+          echo "Configurate git for cherry-picks."
+          git config --global user.email "you@example.com"
+          git config --global user.name "Sample"
+
+      - name: Native Tools Command Prompt.
+        uses: Eden-CI/msvc-dev-cmd@master
+        with:
+          arch: x64
+          sdk: ${{ env.SDK }}
+          toolset: '14.44'
+
+      - name: NuGet sources.
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
+      - name: ThirdParty cache.
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.OS }}-${{ runner.arch }}-ghostgram-third-party-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ runner.arch }}-ghostgram-third-party-
+
+      - name: Libraries cache.
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-${{ runner.arch }}-ghostgram-libs-v2-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ runner.arch }}-ghostgram-libs-v2-
+
+      - name: Qt cache.
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-${{ runner.arch }}-ghostgram-qt5-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ runner.arch }}-ghostgram-qt5-
+
+      - name: Libraries.
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
+
+      - name: Free up some disk space.
+        shell: bash
+        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' ')' -type f ')' -o -empty ')' -delete
+
+      # No warnings-as-errors: this run only needs a working test exe.
+      - name: GhostGram build.
+        run: |
+          cd %TBUILD%\%REPO_NAME%\Telegram
+
+          call configure.bat ^
+          x64 ^
+          -D TDESKTOP_API_TEST=ON ^
+          -D CMAKE_CONFIGURATION_TYPES=Debug ^
+          -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+
+          cmake --build ..\out --config Debug --parallel
+
+      - name: Move artifact.
+        run: |
+          set OUT=%TBUILD%\%REPO_NAME%\out\Debug
+          mkdir artifact
+          move %OUT%\Telegram.exe artifact/
+
+      - name: Upload artifact.
+        uses: actions/upload-artifact@v7
+        with:
+          name: GhostGram-Windows-x64-Debug
+          path: artifact\
+          retention-days: 3
+
+      - name: Build summary.
+        if: always()
+        shell: bash
+        run: |
+          echo '### GhostGram Windows x64 Debug' >> $GITHUB_STEP_SUMMARY
+          if [ -d artifact ]; then
+            ls -lh artifact | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo 'The build failed before the artifact was produced.' >> $GITHUB_STEP_SUMMARY
+          fi
