@@ -21,12 +21,38 @@ jobs:
 
     env:
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+      GHOSTGRAM_API_ID: ${{ secrets.GHOSTGRAM_API_ID }}
+      GHOSTGRAM_API_HASH: ${{ secrets.GHOSTGRAM_API_HASH }}
 
     defaults:
       run:
         shell: cmd
 
     steps:
+      # Fail fast before any disk/cache/checkout work starts.
+      - name: Check GhostGram API secrets.
+        shell: pwsh
+        run: |
+          $id = $env:GHOSTGRAM_API_ID
+          $hash = $env:GHOSTGRAM_API_HASH
+          if ([string]::IsNullOrWhiteSpace($id)) {
+            Write-Output '::error::GHOSTGRAM_API_ID secret is not set. Add it in Settings - Secrets and variables - Actions.'
+            exit 1
+          }
+          if ($id -notmatch '^\d{3,10}$') {
+            Write-Output '::error::GHOSTGRAM_API_ID must be 3-10 decimal digits. The value is not printed.'
+            exit 1
+          }
+          if ([string]::IsNullOrWhiteSpace($hash)) {
+            Write-Output '::error::GHOSTGRAM_API_HASH secret is not set. Add it in Settings - Secrets and variables - Actions.'
+            exit 1
+          }
+          if ($hash -notmatch '^[0-9a-fA-F]{32}$') {
+            Write-Output '::error::GHOSTGRAM_API_HASH must be 32 hex characters. The value is not printed.'
+            exit 1
+          }
+          Write-Output 'GhostGram API secrets are set and well-formed (values are not printed).'
+
       # The stock image keeps tens of GB of toolchains this build never uses.
       - name: Free runner disk space.
         shell: pwsh
@@ -144,7 +170,9 @@ jobs:
 
           call configure.bat ^
           x64 ^
-          -D TDESKTOP_API_TEST=ON ^
+          -D TDESKTOP_API_TEST=OFF ^
+          -D TDESKTOP_API_ID=%GHOSTGRAM_API_ID% ^
+          -D TDESKTOP_API_HASH=%GHOSTGRAM_API_HASH% ^
           -D CMAKE_CONFIGURATION_TYPES=Debug ^
           -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= ^
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
@@ -156,7 +184,7 @@ jobs:
         run: |
           set OUT=%TBUILD%\%REPO_NAME%\out\Debug
           mkdir artifact
-          move %OUT%\Telegram.exe artifact/
+          move %OUT%\GhostGram.exe artifact/
 
       - name: Upload artifact.
         uses: actions/upload-artifact@v7

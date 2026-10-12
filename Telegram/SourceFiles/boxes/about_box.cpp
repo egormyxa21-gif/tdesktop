@@ -65,7 +65,7 @@ rpl::producer<TextWithEntities> Text3() {
 } // namespace
 
 void AboutBox(not_null<Ui::GenericBox*> box) {
-	box->setTitle(u"Telegram Desktop"_q);
+	box->setTitle(u"GhostGram Desktop"_q);
 
 	auto layout = box->verticalLayout();
 
@@ -106,9 +106,9 @@ void AboutBox(not_null<Ui::GenericBox*> box) {
 
 			box->getDelegate()->show(
 				Ui::MakeInformBox(
-					"The link to the current private alpha "
-					"version of Telegram Desktop was copied "
-					"to the clipboard."));
+				"The link to the current private alpha "
+				"version of GhostGram Desktop was copied "
+				"to the clipboard."));
 		} else {
 			File::OpenUrl(Core::App().changelogLink());
 		}
@@ -124,6 +124,7 @@ void AboutBox(not_null<Ui::GenericBox*> box) {
 		Ui::AddSkip(layout, st::aboutSkip);
 	};
 
+	addText(tr::lng_ghostgram_about(tr::marked));
 	addText(Text1());
 	addText(Text2());
 	addText(Text3());
