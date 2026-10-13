@@ -957,6 +957,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ghostgram_theme_solarized" = "Solarized (Классический)";
 "lng_ghostgram_theme_daylight" = "Daylight (Светлый)";
 "lng_ghostgram_theme_lavender" = "Lavender (Светлый фиолетовый)";
+"lng_ghostgram_theme_auto_contrast" = "Авто-контраст текста";
+"lng_ghostgram_theme_auto_contrast_about" = "Если выбранные цвета текста плохо читаются на фоне, GhostGram автоматически подберёт более читаемые оттенки при применении темы.";
 "lng_ghostgram_compact_chats" = "Компактный список чатов";
 "lng_ghostgram_compact_chats_about" = "Уменьшить высоту строк в списке диалогов для отображения большего числа чатов.";
 "lng_ghostgram_show_peer_id" = "Показывать ID пользователя / чата";

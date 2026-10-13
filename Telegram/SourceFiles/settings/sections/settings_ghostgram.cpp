@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ghostgram/ghostgram_settings.h"
 #include "ghostgram/ghostgram_history.h"
+#include "ghostgram/ghostgram_theme.h"
 #include "settings/settings_common_session.h"
 #include "settings/sections/settings_main.h"
 #include "settings/sections/settings_privacy_security.h"
@@ -16,21 +17,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_builder.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/layers/generic_box.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/color_editor.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
 #include <QtCore/QFile>
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonDocument>
 #include <QtCore/QStandardPaths>
+
+#include <array>
 
 namespace Settings {
 namespace {
 
 using namespace Builder;
+namespace Theme = GhostGram::Theme;
 
 void AddSettingToggle(
 		SectionBuilder &builder,
@@ -54,6 +63,138 @@ void AddSettingToggle(
 		| rpl::on_next([=](bool checked) {
 			setter(checked);
 		}, button->lifetime());
+	}
+}
+
+Theme::Spec PaletteSpec() {
+	auto danger = st::botKbDangerBg->c;
+	danger.setAlpha(255);
+	auto success = st::botKbSuccessBg->c;
+	success.setAlpha(255);
+	return Theme::Spec{
+		.id = u"palette"_q,
+		.dark = (st::windowBg->c.lightness() < 128),
+		.bg = st::windowBg->c,
+		.accent = st::windowBgActive->c,
+		.msgIn = st::msgInBg->c,
+		.msgOut = st::msgOutBg->c,
+		.text = st::windowFg->c,
+		.textSubtle = st::windowSubTextFg->c,
+		.danger = danger,
+		.success = success,
+	};
+}
+
+Theme::Spec CurrentSpec() {
+	auto spec = Theme::ParseSpec(
+		GhostGram::Settings::CurrentCustomTheme());
+	if (!spec) {
+		spec = Theme::PresetSpec(
+			GhostGram::Settings::CurrentThemePreset());
+	}
+	if (!spec) {
+		spec = PaletteSpec();
+	}
+	return GhostGram::Settings::AutoContrast()
+		? Theme::EnsureReadableSpec(*spec)
+		: *spec;
+}
+
+rpl::producer<Theme::Spec> ActiveSpec() {
+	return rpl::combine(
+			GhostGram::Settings::ThemePresetValue(),
+			GhostGram::Settings::CustomThemeValue(),
+			GhostGram::Settings::AutoContrastValue())
+	| rpl::map([](
+			GhostGram::Settings::ThemePreset preset,
+			const QByteArray &custom,
+			bool autoContrast) {
+		auto spec = Theme::ParseSpec(custom);
+		if (!spec) {
+			spec = Theme::PresetSpec(preset);
+		}
+		if (!spec) {
+			spec = PaletteSpec();
+		}
+		return autoContrast
+			? Theme::EnsureReadableSpec(*spec)
+			: *spec;
+	});
+}
+
+QColor SpecColor(const Theme::Spec &spec, const QString &field) {
+	if (field == u"accent"_q) {
+		return spec.accent;
+	} else if (field == u"msgIn"_q) {
+		return spec.msgIn;
+	} else if (field == u"msgOut"_q) {
+		return spec.msgOut;
+	} else if (field == u"text"_q) {
+		return spec.text;
+	} else if (field == u"textSubtle"_q) {
+		return spec.textSubtle;
+	} else if (field == u"danger"_q) {
+		return spec.danger;
+	} else if (field == u"success"_q) {
+		return spec.success;
+	}
+	return spec.bg;
+}
+
+bool SavedSlotExists(const QByteArray &json, int index) {
+	const auto array = QJsonDocument::fromJson(json).array();
+	return (index >= 0 && index < array.size());
+}
+
+QByteArray SavedSlotAt(const QByteArray &json, int index) {
+	const auto array = QJsonDocument::fromJson(json).array();
+	return QJsonDocument(
+		array.at(index).toObject()).toJson(QJsonDocument::Compact);
+}
+
+class ThemePreview : public Ui::RpWidget {
+public:
+	explicit ThemePreview(not_null<Ui::VerticalLayout*> parent)
+	: Ui::RpWidget(parent) {
+		setFixedHeight(st::settingsButton.height);
+	}
+
+	void setSpec(const Theme::Spec &spec) {
+		_colors = {
+			spec.bg,
+			spec.accent,
+			spec.msgIn,
+			spec.msgOut,
+			spec.text,
+			spec.textSubtle,
+			spec.danger,
+			spec.success,
+		};
+		update();
+	}
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	std::array<QColor, 8> _colors;
+
+};
+
+void ThemePreview::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	const auto gap = st::settingsButton.padding.left();
+	const auto count = int(_colors.size());
+	const auto cell = (width() - gap * (count - 1)) / count;
+	for (auto i = 0; i != count; ++i) {
+		const auto rect = QRect(
+			i * (cell + gap),
+			0,
+			cell,
+			height());
+		p.setPen(st::windowSubTextFg);
+		p.setBrush(_colors[i]);
+		p.drawRoundedRect(rect, st::boxRadius, st::boxRadius);
 	}
 }
 
@@ -402,6 +543,7 @@ void BuildAccountsCategory(SectionBuilder &builder) {
 }
 
 void BuildInterfaceCategory(SectionBuilder &builder) {
+	const auto controller = builder.controller();
 	builder.addDividerText(tr::lng_settings_ghostgram_interface_desc());
 
 	builder.addSubsectionTitle(rpl::single(u"Цветовые темы GhostGram"_q));
@@ -464,6 +606,223 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 			.keywords = { u"theme"_q, u"color"_q },
 		});
 	}
+
+	builder.addDivider();
+	builder.addSkip();
+
+	builder.addSubsectionTitle(rpl::single(u"Редактор темы"_q));
+
+	builder.add([](const WidgetContext &ctx) {
+		const auto preview = new ThemePreview(ctx.container);
+		ActiveSpec()
+		| rpl::on_next([=](const Theme::Spec &spec) {
+			preview->setSpec(spec);
+		}, preview->lifetime());
+		return WidgetToAdd{ .widget = preview };
+	});
+
+	struct ColorFieldRow {
+		QString field;
+		rpl::producer<QString> title;
+	};
+	const auto colorRows = std::vector<ColorFieldRow>{
+		{ u"bg"_q, rpl::single(u"Фон приложения"_q) },
+		{ u"accent"_q, rpl::single(u"Акцент"_q) },
+		{ u"msgIn"_q, rpl::single(u"Входящие сообщения"_q) },
+		{ u"msgOut"_q, rpl::single(u"Исходящие сообщения"_q) },
+		{ u"text"_q, rpl::single(u"Основной текст"_q) },
+		{ u"textSubtle"_q, rpl::single(u"Дополнительный текст"_q) },
+		{ u"danger"_q, rpl::single(u"Ошибки и опасные действия"_q) },
+		{ u"success"_q, rpl::single(u"Успех и онлайн"_q) },
+	};
+	for (auto &row : colorRows) {
+		const auto field = row.field;
+		builder.addButton({
+			.id = u"theme/color_"_q + field,
+			.title = std::move(row.title),
+			.st = &st::settingsButtonNoIcon,
+			.label = ActiveSpec()
+				| rpl::map([=](const Theme::Spec &spec) {
+					return Theme::ColorHex(SpecColor(spec, field));
+				}),
+			.onClick = [=] {
+				const auto spec = CurrentSpec();
+				const auto color = SpecColor(spec, field);
+				controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+					const auto editor = box->addRow(
+						object_ptr<ColorEditor>(
+							box,
+							ColorEditor::Mode::RGBA,
+							color));
+					box->setWidth(editor->width());
+					box->addButton(tr::lng_box_done(), [=] {
+						const auto updated = Theme::SpecWithOverrides(
+							spec,
+							{ { field, editor->color() } });
+						GhostGram::Settings::SetCustomTheme(
+							Theme::SerializeSpec(updated));
+						box->closeBox();
+					});
+					box->addButton(tr::lng_cancel(), [=] {
+						box->closeBox();
+					});
+					box->setFocusCallback([=] {
+						editor->setInnerFocus();
+					});
+				});
+			},
+			.keywords = { u"theme"_q, u"color"_q },
+		});
+	}
+
+	builder.addSubsectionTitle(rpl::single(u"Читаемость"_q));
+
+	AddSettingToggle(
+		builder,
+		u"theme/auto_contrast"_q,
+		tr::lng_ghostgram_theme_auto_contrast(),
+		GhostGram::Settings::AutoContrast,
+		GhostGram::Settings::SetAutoContrast,
+		{ u"contrast"_q, u"readable"_q });
+	builder.addDividerText(tr::lng_ghostgram_theme_auto_contrast_about());
+
+	builder.addDividerText(
+		ActiveSpec()
+		| rpl::map([](const Theme::Spec &spec) {
+			const auto ratio = Theme::ContrastRatio(
+				spec.bg,
+				spec.text);
+			const auto value = QString::number(ratio, 'f', 1);
+			return (ratio >= 4.5)
+				? u"Контраст текста и фона: %1 — норма"_q.arg(value)
+				: u"Контраст текста и фона: %1 — слишком низкий, текст может быть плохо читаем"_q.arg(value);
+		}));
+
+	builder.addDivider();
+	builder.addSkip();
+
+	builder.addSubsectionTitle(rpl::single(u"Обмен темой"_q));
+
+	builder.addButton({
+		.id = u"theme/export"_q,
+		.title = rpl::single(u"Экспорт темы в JSON"_q),
+		.st = &st::settingsButtonNoIcon,
+		.onClick = [=] {
+			const auto path = QStandardPaths::writableLocation(
+				QStandardPaths::DocumentsLocation)
+				+ u"/ghostgram_theme.json"_q;
+			auto file = QFile(path);
+			if (file.open(QIODevice::WriteOnly)) {
+				file.write(Theme::SerializeSpec(CurrentSpec()));
+				file.close();
+				controller->show(Ui::MakeInformBox(
+					u"Тема экспортирована в:\n"_q + path));
+			} else {
+				controller->show(Ui::MakeInformBox(
+					u"Не удалось записать файл темы."_q));
+			}
+		},
+		.keywords = { u"export"_q, u"theme"_q },
+	});
+
+	builder.addButton({
+		.id = u"theme/import"_q,
+		.title = rpl::single(u"Импорт темы из JSON"_q),
+		.st = &st::settingsButtonNoIcon,
+		.onClick = [=] {
+			const auto path = QStandardPaths::writableLocation(
+				QStandardPaths::DocumentsLocation)
+				+ u"/ghostgram_theme.json"_q;
+			auto file = QFile(path);
+			if (!file.open(QIODevice::ReadOnly)) {
+				controller->show(Ui::MakeInformBox(
+					u"Файл не найден по пути:\n"_q + path));
+				return;
+			}
+			const auto data = file.readAll();
+			file.close();
+			if (!Theme::ParseSpec(data)) {
+				controller->show(Ui::MakeInformBox(
+					u"Ошибка формата JSON в файле темы."_q));
+				return;
+			}
+			GhostGram::Settings::SetCustomTheme(data);
+			controller->show(Ui::MakeInformBox(
+				u"Тема успешно импортирована."_q));
+		},
+		.keywords = { u"import"_q, u"theme"_q },
+	});
+
+	builder.addSubsectionTitle(rpl::single(u"Сохранённые палитры"_q));
+
+	builder.addButton({
+		.id = u"theme/save_current"_q,
+		.title = rpl::single(u"Сохранить текущую тему"_q),
+		.st = &st::settingsButtonNoIcon,
+		.onClick = [=] {
+			if (!GhostGram::Settings::AddSavedTheme(
+					Theme::SerializeSpec(CurrentSpec()))) {
+				controller->show(Ui::MakeInformBox(
+					u"Нет свободных слотов для палитр. Удалите одну из сохранённых."_q));
+			}
+		},
+		.keywords = { u"save"_q, u"theme"_q },
+	});
+
+	constexpr auto kSavedSlots = 8;
+	for (auto i = 0; i != kSavedSlots; ++i) {
+		const auto index = i;
+		builder.addButton({
+			.id = u"theme/slot_"_q + QString::number(index),
+			.title = rpl::single(u"Палитра %1"_q.arg(index + 1)),
+			.st = &st::settingsButtonNoIcon,
+			.label = GhostGram::Settings::SavedThemesValue()
+				| rpl::map([=](const QByteArray &json) {
+					return SavedSlotExists(json, index)
+						? u"заполнена"_q
+						: u"пусто"_q;
+				}),
+			.onClick = [=] {
+				const auto json = GhostGram::Settings::SavedThemesJson();
+				if (!SavedSlotExists(json, index)) {
+					return;
+				}
+				controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+					box->setTitle(u"Сохранённая палитра"_q);
+					box->addButton(rpl::single(u"Применить"_q), [=] {
+						GhostGram::Settings::SetCustomTheme(
+							SavedSlotAt(json, index));
+						box->closeBox();
+					});
+					box->addButton(rpl::single(u"Удалить"_q), [=] {
+						GhostGram::Settings::RemoveSavedTheme(index);
+						box->closeBox();
+					});
+					box->addButton(tr::lng_cancel(), [=] {
+						box->closeBox();
+					});
+				});
+			},
+			.keywords = { u"theme"_q, u"saved"_q },
+		});
+	}
+
+	builder.addButton({
+		.id = u"theme/clear_saved"_q,
+		.title = rpl::single(u"Удалить все сохранённые палитры"_q),
+		.st = &st::settingsButtonNoIcon,
+		.onClick = [=] {
+			controller->show(Ui::MakeConfirmBox({
+				.text = u"Удалить все сохранённые палитры тем GhostGram?"_q,
+				.confirmed = [=](Fn<void()> close) {
+					GhostGram::Settings::ClearSavedThemes();
+					close();
+				},
+				.confirmText = u"Удалить"_q,
+			}));
+		},
+		.keywords = { u"clear"_q, u"saved"_q },
+	});
 
 	builder.addDivider();
 	builder.addSkip();

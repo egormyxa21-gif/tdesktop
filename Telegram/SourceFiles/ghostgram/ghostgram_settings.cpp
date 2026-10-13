@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ghostgram/ghostgram_theme.h"
 #include "window/themes/window_theme.h"
 
+#include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <rpl/variable.h>
@@ -38,6 +39,8 @@ constexpr auto kEditHistoryEnabledKey = "gg_edit_history_enabled";
 constexpr auto kHistoryRetentionDaysKey = "gg_history_retention_days";
 constexpr auto kThemePresetKey = "gg_theme_preset";
 constexpr auto kThemeCustomKey = "gg_theme_custom";
+constexpr auto kThemeAutoContrastKey = "gg_theme_auto_contrast";
+constexpr auto kThemeSavedKey = "gg_theme_saved";
 constexpr auto kCompactChatListKey = "gg_compact_chat_list";
 constexpr auto kShowPeerIdKey = "gg_show_peer_id";
 constexpr auto kHideSponsoredKey = "gg_hide_sponsored";
@@ -46,6 +49,7 @@ constexpr auto kBlockTelemetryKey = "gg_block_telemetry";
 constexpr auto kPreserveDeletedMediaKey = "gg_preserve_deleted_media";
 constexpr auto kBookmarksEnabledKey = "gg_bookmarks_enabled";
 constexpr auto kChatNotesEnabledKey = "gg_chat_notes_enabled";
+constexpr auto kMaxSavedThemes = 8;
 
 struct State {
 	rpl::variable<bool> ghostReadReceipts = false;
@@ -65,6 +69,8 @@ struct State {
 	rpl::variable<int> historyRetentionDays = 30;
 	rpl::variable<ThemePreset> themePreset = ThemePreset::Default;
 	rpl::variable<QByteArray> customTheme;
+	rpl::variable<bool> autoContrast = true;
+	rpl::variable<QByteArray> savedThemes;
 	rpl::variable<bool> compactChatList = false;
 	rpl::variable<bool> showPeerId = false;
 	rpl::variable<bool> hideSponsored = true;
@@ -76,7 +82,9 @@ struct State {
 	bool initialized = false;
 };
 
-void ApplyTheme(const std::optional<Theme::Spec> &spec);
+void ApplyTheme(
+	const std::optional<Theme::Spec> &spec,
+	bool autoContrast);
 void ApplyActiveTheme(const State &state);
 
 State &GetState() {
@@ -122,6 +130,8 @@ State &GetState() {
 			state.themePreset = ThemePreset::Default;
 		}
 		state.customTheme = core.readPref<QByteArray>(kThemeCustomKey);
+		state.autoContrast = core.readPref<bool>(kThemeAutoContrastKey, true);
+		state.savedThemes = core.readPref<QByteArray>(kThemeSavedKey);
 
 		state.compactChatList = core.readPref<bool>(kCompactChatListKey, false);
 		state.showPeerId = core.readPref<bool>(kShowPeerIdKey, false);
@@ -404,23 +414,28 @@ ThemePreset CurrentThemePreset() {
 
 namespace {
 
-void ApplyTheme(const std::optional<Theme::Spec> &spec) {
+void ApplyTheme(
+		const std::optional<Theme::Spec> &spec,
+		bool autoContrast) {
 	if (!spec) {
 		Window::Theme::ResetToSomeDefault();
 		return;
 	}
-	const auto palette = Theme::BuildPalette(
-		Theme::EnsureReadableSpec(*spec));
+	const auto prepared = autoContrast
+		? Theme::EnsureReadableSpec(*spec)
+		: *spec;
+	const auto palette = Theme::BuildPalette(prepared);
 	if (!palette.isEmpty() && Window::Theme::ApplyEditedPalette(palette)) {
 		Window::Theme::KeepApplied();
 	}
 }
 
 void ApplyActiveTheme(const State &state) {
+	const auto autoContrast = state.autoContrast.current();
 	if (const auto custom = Theme::ParseSpec(state.customTheme.current())) {
-		ApplyTheme(custom);
+		ApplyTheme(custom, autoContrast);
 	} else if (const auto preset = Theme::PresetSpec(state.themePreset.current())) {
-		ApplyTheme(preset);
+		ApplyTheme(preset, autoContrast);
 	}
 }
 
@@ -437,7 +452,7 @@ void SetThemePreset(ThemePreset value) {
 		SaveBytes(kThemeCustomKey, QByteArray());
 	}
 	if (value == ThemePreset::Default) {
-		ApplyTheme(std::nullopt);
+		ApplyTheme(std::nullopt, state.autoContrast.current());
 	} else {
 		ApplyActiveTheme(state);
 	}
@@ -470,6 +485,69 @@ void SetCustomTheme(const QByteArray &value) {
 
 rpl::producer<QByteArray> CustomThemeValue() {
 	return GetState().customTheme.value();
+}
+
+bool AutoContrast() {
+	return GetState().autoContrast.current();
+}
+
+void SetAutoContrast(bool value) {
+	auto &state = GetState();
+	if (state.autoContrast.current() != value) {
+		state.autoContrast = value;
+		SaveBool(kThemeAutoContrastKey, value);
+		ApplyActiveTheme(state);
+	}
+}
+
+rpl::producer<bool> AutoContrastValue() {
+	return GetState().autoContrast.value();
+}
+
+QByteArray SavedThemesJson() {
+	return GetState().savedThemes.current();
+}
+
+rpl::producer<QByteArray> SavedThemesValue() {
+	return GetState().savedThemes.value();
+}
+
+bool AddSavedTheme(const QByteArray &specJson) {
+	if (!Theme::ParseSpec(specJson)) {
+		return false;
+	}
+	auto array = QJsonDocument::fromJson(
+		GetState().savedThemes.current()).array();
+	if (array.size() >= kMaxSavedThemes) {
+		return false;
+	}
+	array.append(QJsonDocument::fromJson(specJson).object());
+	const auto data = QJsonDocument(array).toJson(
+		QJsonDocument::Compact);
+	GetState().savedThemes = data;
+	SaveBytes(kThemeSavedKey, data);
+	return true;
+}
+
+void RemoveSavedTheme(int index) {
+	auto array = QJsonDocument::fromJson(
+		GetState().savedThemes.current()).array();
+	if (index < 0 || index >= array.size()) {
+		return;
+	}
+	array.removeAt(index);
+	const auto data = QJsonDocument(array).toJson(
+		QJsonDocument::Compact);
+	GetState().savedThemes = data;
+	SaveBytes(kThemeSavedKey, data);
+}
+
+void ClearSavedThemes() {
+	if (GetState().savedThemes.current().isEmpty()) {
+		return;
+	}
+	GetState().savedThemes = QByteArray();
+	SaveBytes(kThemeSavedKey, QByteArray());
 }
 
 void Reload() {
@@ -623,6 +701,8 @@ void ResetToDefaults() {
 	SetEditHistoryEnabled(false);
 	SetHistoryRetentionDays(30);
 	SetThemePreset(ThemePreset::Default);
+	SetAutoContrast(true);
+	ClearSavedThemes();
 	SetCompactChatList(false);
 	SetShowPeerId(false);
 	SetHideSponsored(true);

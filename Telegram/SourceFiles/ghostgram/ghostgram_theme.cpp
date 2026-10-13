@@ -637,7 +637,7 @@ std::optional<Spec> ParseSpec(const QByteArray &json) {
 		&& spec.textSubtle.isValid()
 		&& spec.danger.isValid()
 		&& spec.success.isValid();
-	return valid ? std::optional<Spec>(EnsureReadableSpec(spec)) : std::nullopt;
+	return valid ? std::optional<Spec>(spec) : std::nullopt;
 }
 
 QByteArray SerializeSpec(const Spec &spec) {
@@ -654,6 +654,10 @@ QByteArray SerializeSpec(const Spec &spec) {
 	object.insert(u"danger"_q, Hex(spec.danger));
 	object.insert(u"success"_q, Hex(spec.success));
 	return QJsonDocument(object).toJson(QJsonDocument::Compact);
+}
+
+QString ColorHex(const QColor &color) {
+	return Hex(color);
 }
 
 } // namespace GhostGram::Theme

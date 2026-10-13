@@ -106,6 +106,16 @@ void SetThemePreset(ThemePreset value);
 void SetCustomTheme(const QByteArray &value);
 [[nodiscard]] rpl::producer<QByteArray> CustomThemeValue();
 
+[[nodiscard]] bool AutoContrast();
+void SetAutoContrast(bool value);
+[[nodiscard]] rpl::producer<bool> AutoContrastValue();
+
+[[nodiscard]] QByteArray SavedThemesJson();
+[[nodiscard]] rpl::producer<QByteArray> SavedThemesValue();
+[[nodiscard]] bool AddSavedTheme(const QByteArray &specJson);
+void RemoveSavedTheme(int index);
+void ClearSavedThemes();
+
 // WHY: the first GetState() happens while Core::Settings is still empty
 // (Main::Domain is built before Local::start), so prefs must be re-read
 // once they are actually loaded.
