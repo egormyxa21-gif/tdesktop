@@ -899,10 +899,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_ghostgram_media_desc" = "Настройки автоматической загрузки и сохранение кэша медиафайлов.";
 "lng_settings_ghostgram_notifications" = "Уведомления";
 "lng_settings_ghostgram_notifications_desc" = "Тонкая настройка оповещений, звуков и режима приватности в уведомлениях.";
+"lng_settings_ghostgram_streamer" = "Режим стримера";
+"lng_settings_ghostgram_streamer_desc" = "Скрытие конфиденциальной информации на экране во время трансляций и записей.";
 "lng_settings_ghostgram_tools" = "Инструменты";
-"lng_settings_ghostgram_tools_desc" = "Режим стримера, локальные закладки и заметки к чатам.";
+"lng_settings_ghostgram_tools_desc" = "Локальные закладки и заметки к чатам.";
+"lng_settings_ghostgram_backup" = "Экспорт и сброс";
+"lng_settings_ghostgram_backup_desc" = "Экспорт и импорт конфигурации GhostGram, сброс параметров по умолчанию.";
 "lng_settings_ghostgram_advanced" = "Расширенные настройки";
-"lng_settings_ghostgram_advanced_desc" = "Параметры разработчика, хранилище конфигурации и резервное копирование.";
+"lng_settings_ghostgram_advanced_desc" = "Блокировка телеметрии и отладочные параметры интерфейса.";
 "lng_settings_ghostgram_about_page" = "О программе";
 "lng_settings_ghostgram_about_page_desc" = "Информация о версии GhostGram Desktop, авторах и лицензии.";
 "lng_settings_ghostgram_empty" = "Параметры категории загружаются...";

@@ -45,24 +45,19 @@ void AddSettingToggle(
 		SectionBuilder &builder,
 		QString id,
 		rpl::producer<QString> title,
-		Fn<bool()> getter,
+		rpl::producer<bool> value,
 		Fn<void(bool)> setter,
 		QStringList keywords = {}) {
 	const auto button = builder.addButton({
 		.id = std::move(id),
 		.title = std::move(title),
 		.st = &st::settingsButtonNoIcon,
-		.toggled = rpl::single(getter()),
+		.toggled = std::move(value),
 		.keywords = std::move(keywords),
 	});
 	if (button) {
 		button->toggledValue()
-		| rpl::filter([=](bool checked) {
-			return checked != getter();
-		})
-		| rpl::on_next([=](bool checked) {
-			setter(checked);
-		}, button->lifetime());
+		| rpl::on_next(setter, button->lifetime());
 	}
 }
 
@@ -324,7 +319,21 @@ private:
 
 };
 
-// 10. Tools
+// 10. Streamer
+class GhostGramStreamer : public Section<GhostGramStreamer> {
+public:
+	GhostGramStreamer(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
+
+	[[nodiscard]] rpl::producer<QString> title() override;
+
+private:
+	void setupContent();
+
+};
+
+// 11. Tools
 class GhostGramTools : public Section<GhostGramTools> {
 public:
 	GhostGramTools(
@@ -338,7 +347,21 @@ private:
 
 };
 
-// 11. Advanced
+// 12. Backup
+class GhostGramBackup : public Section<GhostGramBackup> {
+public:
+	GhostGramBackup(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
+
+	[[nodiscard]] rpl::producer<QString> title() override;
+
+private:
+	void setupContent();
+
+};
+
+// 13. Advanced
 class GhostGramAdvanced : public Section<GhostGramAdvanced> {
 public:
 	GhostGramAdvanced(
@@ -352,7 +375,7 @@ private:
 
 };
 
-// 12. About
+// 14. About
 class GhostGramAbout : public Section<GhostGramAbout> {
 public:
 	GhostGramAbout(
@@ -389,7 +412,7 @@ void BuildOverviewCategory(SectionBuilder &builder) {
 		builder,
 		u"overview/ghost_toggle"_q,
 		tr::lng_ghostgram_ghost_read_receipts(),
-		GhostGram::Settings::GhostReadReceipts,
+		GhostGram::Settings::GhostReadReceiptsValue(),
 		GhostGram::Settings::SetGhostReadReceipts,
 		{ u"ghost"_q, u"stealth"_q });
 
@@ -397,7 +420,7 @@ void BuildOverviewCategory(SectionBuilder &builder) {
 		builder,
 		u"overview/streamer_toggle"_q,
 		tr::lng_ghostgram_streamer_mode(),
-		GhostGram::Settings::StreamerMode,
+		GhostGram::Settings::StreamerModeValue(),
 		GhostGram::Settings::SetStreamerMode,
 		{ u"streamer"_q });
 
@@ -405,7 +428,7 @@ void BuildOverviewCategory(SectionBuilder &builder) {
 		builder,
 		u"overview/anti_recall_toggle"_q,
 		tr::lng_ghostgram_anti_recall(),
-		GhostGram::Settings::AntiRecallEnabled,
+		GhostGram::Settings::AntiRecallEnabledValue(),
 		GhostGram::Settings::SetAntiRecallEnabled,
 		{ u"anti-recall"_q, u"messages"_q });
 
@@ -440,7 +463,7 @@ void BuildGeneralCategory(SectionBuilder &builder) {
 		builder,
 		u"general/compact_chats"_q,
 		tr::lng_ghostgram_compact_chats(),
-		GhostGram::Settings::CompactChatList,
+		GhostGram::Settings::CompactChatListValue(),
 		GhostGram::Settings::SetCompactChatList,
 		{ u"compact"_q, u"chats"_q });
 	builder.addDividerText(tr::lng_ghostgram_compact_chats_about());
@@ -450,19 +473,10 @@ void BuildGeneralCategory(SectionBuilder &builder) {
 		builder,
 		u"general/hide_sponsored"_q,
 		tr::lng_ghostgram_hide_sponsored(),
-		GhostGram::Settings::HideSponsored,
+		GhostGram::Settings::HideSponsoredValue(),
 		GhostGram::Settings::SetHideSponsored,
 		{ u"ads"_q, u"sponsored"_q });
 	builder.addDividerText(tr::lng_ghostgram_hide_sponsored_about());
-
-	AddSettingToggle(
-		builder,
-		u"general/block_telemetry"_q,
-		tr::lng_ghostgram_privacy_block_telemetry(),
-		GhostGram::Settings::BlockTelemetry,
-		GhostGram::Settings::SetBlockTelemetry,
-		{ u"telemetry"_q, u"privacy"_q });
-	builder.addDividerText(tr::lng_ghostgram_privacy_block_telemetry_about());
 }
 
 void BuildGhostCategory(SectionBuilder &builder) {
@@ -473,7 +487,7 @@ void BuildGhostCategory(SectionBuilder &builder) {
 		builder,
 		u"ghost/read_receipts"_q,
 		tr::lng_ghostgram_ghost_read_receipts(),
-		GhostGram::Settings::GhostReadReceipts,
+		GhostGram::Settings::GhostReadReceiptsValue(),
 		GhostGram::Settings::SetGhostReadReceipts,
 		{ u"read"_q, u"receipts"_q, u"stealth"_q });
 	builder.addDividerText(tr::lng_ghostgram_ghost_read_receipts_about());
@@ -482,7 +496,7 @@ void BuildGhostCategory(SectionBuilder &builder) {
 		builder,
 		u"ghost/typing"_q,
 		tr::lng_ghostgram_ghost_typing(),
-		GhostGram::Settings::GhostTyping,
+		GhostGram::Settings::GhostTypingValue(),
 		GhostGram::Settings::SetGhostTyping,
 		{ u"typing"_q, u"status"_q });
 	builder.addDividerText(tr::lng_ghostgram_ghost_typing_about());
@@ -492,7 +506,7 @@ void BuildGhostCategory(SectionBuilder &builder) {
 		builder,
 		u"ghost/stories"_q,
 		tr::lng_ghostgram_ghost_stories(),
-		GhostGram::Settings::GhostStories,
+		GhostGram::Settings::GhostStoriesValue(),
 		GhostGram::Settings::SetGhostStories,
 		{ u"stories"_q });
 	builder.addDividerText(tr::lng_ghostgram_ghost_stories_about());
@@ -501,7 +515,7 @@ void BuildGhostCategory(SectionBuilder &builder) {
 		builder,
 		u"ghost/offline"_q,
 		tr::lng_ghostgram_ghost_offline(),
-		GhostGram::Settings::GhostOffline,
+		GhostGram::Settings::GhostOfflineValue(),
 		GhostGram::Settings::SetGhostOffline,
 		{ u"offline"_q, u"status"_q });
 	builder.addDividerText(tr::lng_ghostgram_ghost_offline_about());
@@ -516,7 +530,7 @@ void BuildAccountsCategory(SectionBuilder &builder) {
 		builder,
 		u"accounts/fast_switch"_q,
 		tr::lng_ghostgram_accounts_fast_switch(),
-		GhostGram::Settings::FastAccountSwitch,
+		GhostGram::Settings::FastAccountSwitchValue(),
 		GhostGram::Settings::SetFastAccountSwitch,
 		{ u"switch"_q, u"accounts"_q });
 	builder.addDividerText(tr::lng_ghostgram_accounts_fast_switch_about());
@@ -681,7 +695,7 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 		builder,
 		u"theme/auto_contrast"_q,
 		tr::lng_ghostgram_theme_auto_contrast(),
-		GhostGram::Settings::AutoContrast,
+		GhostGram::Settings::AutoContrastValue(),
 		GhostGram::Settings::SetAutoContrast,
 		{ u"contrast"_q, u"readable"_q });
 	builder.addDividerText(tr::lng_ghostgram_theme_auto_contrast_about());
@@ -823,19 +837,6 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 		},
 		.keywords = { u"clear"_q, u"saved"_q },
 	});
-
-	builder.addDivider();
-	builder.addSkip();
-
-	builder.addSubsectionTitle(rpl::single(u"Дополнительное отображение"_q));
-	AddSettingToggle(
-		builder,
-		u"interface/show_peer_id"_q,
-		tr::lng_ghostgram_show_peer_id(),
-		GhostGram::Settings::ShowPeerId,
-		GhostGram::Settings::SetShowPeerId,
-		{ u"peer_id"_q, u"id"_q });
-	builder.addDividerText(tr::lng_ghostgram_show_peer_id_about());
 }
 
 void BuildMessagesCategory(SectionBuilder &builder) {
@@ -848,7 +849,7 @@ void BuildMessagesCategory(SectionBuilder &builder) {
 		builder,
 		u"messages/anti_recall"_q,
 		tr::lng_ghostgram_anti_recall(),
-		GhostGram::Settings::AntiRecallEnabled,
+		GhostGram::Settings::AntiRecallEnabledValue(),
 		GhostGram::Settings::SetAntiRecallEnabled,
 		{ u"anti-recall"_q, u"deleted"_q });
 	builder.addDividerText(tr::lng_ghostgram_anti_recall_about());
@@ -857,7 +858,7 @@ void BuildMessagesCategory(SectionBuilder &builder) {
 		builder,
 		u"messages/anti_recall_mark"_q,
 		tr::lng_ghostgram_anti_recall_mark(),
-		GhostGram::Settings::AntiRecallShowMark,
+		GhostGram::Settings::AntiRecallShowMarkValue(),
 		GhostGram::Settings::SetAntiRecallShowMark,
 		{ u"mark"_q, u"deleted"_q });
 	builder.addDividerText(tr::lng_ghostgram_anti_recall_mark_about());
@@ -866,7 +867,7 @@ void BuildMessagesCategory(SectionBuilder &builder) {
 		builder,
 		u"messages/edit_history"_q,
 		tr::lng_ghostgram_edit_history(),
-		GhostGram::Settings::EditHistoryEnabled,
+		GhostGram::Settings::EditHistoryEnabledValue(),
 		GhostGram::Settings::SetEditHistoryEnabled,
 		{ u"edit"_q, u"history"_q });
 	builder.addDividerText(tr::lng_ghostgram_edit_history_about());
@@ -943,19 +944,10 @@ void BuildPrivacyCategory(SectionBuilder &builder) {
 		builder,
 		u"privacy/forward_clean"_q,
 		tr::lng_ghostgram_privacy_forward_clean(),
-		GhostGram::Settings::ForwardWithoutQuote,
+		GhostGram::Settings::ForwardWithoutQuoteValue(),
 		GhostGram::Settings::SetForwardWithoutQuote,
 		{ u"forward"_q, u"quote"_q });
 	builder.addDividerText(tr::lng_ghostgram_privacy_forward_clean_about());
-
-	AddSettingToggle(
-		builder,
-		u"privacy/block_telemetry"_q,
-		tr::lng_ghostgram_privacy_block_telemetry(),
-		GhostGram::Settings::BlockTelemetry,
-		GhostGram::Settings::SetBlockTelemetry,
-		{ u"telemetry"_q });
-	builder.addDividerText(tr::lng_ghostgram_privacy_block_telemetry_about());
 
 	builder.addDivider();
 	builder.addSkip();
@@ -980,7 +972,7 @@ void BuildMediaCategory(SectionBuilder &builder) {
 		builder,
 		u"media/preserve_deleted"_q,
 		tr::lng_ghostgram_media_preserve(),
-		GhostGram::Settings::PreserveDeletedMedia,
+		GhostGram::Settings::PreserveDeletedMediaValue(),
 		GhostGram::Settings::SetPreserveDeletedMedia,
 		{ u"media"_q, u"cache"_q });
 	builder.addDividerText(tr::lng_ghostgram_media_preserve_about());
@@ -990,16 +982,7 @@ void BuildNotificationsCategory(SectionBuilder &builder) {
 	const auto controller = builder.controller();
 	builder.addDividerText(tr::lng_settings_ghostgram_notifications_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Специальные уведомления"_q));
-
-	AddSettingToggle(
-		builder,
-		u"notifications/streamer_hide"_q,
-		tr::lng_ghostgram_streamer_hide_previews(),
-		GhostGram::Settings::StreamerHidePreviews,
-		GhostGram::Settings::SetStreamerHidePreviews,
-		{ u"notifications"_q, u"streamer"_q });
-	builder.addDividerText(tr::lng_ghostgram_streamer_hide_previews_about());
+	builder.addSubsectionTitle(rpl::single(u"Системные уведомления"_q));
 
 	builder.addDivider();
 	builder.addSkip();
@@ -1015,47 +998,60 @@ void BuildNotificationsCategory(SectionBuilder &builder) {
 	});
 }
 
-void BuildToolsCategory(SectionBuilder &builder) {
-	const auto controller = builder.controller();
-	builder.addDividerText(tr::lng_settings_ghostgram_tools_desc());
+void BuildStreamerCategory(SectionBuilder &builder) {
+	builder.addDividerText(tr::lng_settings_ghostgram_streamer_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Режим стримера"_q));
+	builder.addSubsectionTitle(rpl::single(u"Скрытие информации"_q));
 
 	AddSettingToggle(
 		builder,
-		u"tools/streamer_mode"_q,
+		u"streamer/mode"_q,
 		tr::lng_ghostgram_streamer_mode(),
-		GhostGram::Settings::StreamerMode,
+		GhostGram::Settings::StreamerModeValue(),
 		GhostGram::Settings::SetStreamerMode,
-		{ u"streamer"_q });
+		{ u"streamer"_q, u"broadcast"_q });
 	builder.addDividerText(tr::lng_ghostgram_streamer_mode_about());
 
 	AddSettingToggle(
 		builder,
-		u"tools/streamer_hide_names"_q,
+		u"streamer/hide_names"_q,
 		tr::lng_ghostgram_streamer_hide_names(),
-		GhostGram::Settings::StreamerHideNames,
+		GhostGram::Settings::StreamerHideNamesValue(),
 		GhostGram::Settings::SetStreamerHideNames,
 		{ u"streamer"_q, u"names"_q });
 	builder.addDividerText(tr::lng_ghostgram_streamer_hide_names_about());
 
 	AddSettingToggle(
 		builder,
-		u"tools/streamer_hide_avatars"_q,
+		u"streamer/hide_avatars"_q,
 		tr::lng_ghostgram_streamer_hide_avatars(),
-		GhostGram::Settings::StreamerHideAvatars,
+		GhostGram::Settings::StreamerHideAvatarsValue(),
 		GhostGram::Settings::SetStreamerHideAvatars,
 		{ u"streamer"_q, u"avatars"_q });
 	builder.addDividerText(tr::lng_ghostgram_streamer_hide_avatars_about());
 
 	AddSettingToggle(
 		builder,
-		u"tools/streamer_censor_phones"_q,
+		u"streamer/hide_previews"_q,
+		tr::lng_ghostgram_streamer_hide_previews(),
+		GhostGram::Settings::StreamerHidePreviewsValue(),
+		GhostGram::Settings::SetStreamerHidePreviews,
+		{ u"streamer"_q, u"previews"_q });
+	builder.addDividerText(tr::lng_ghostgram_streamer_hide_previews_about());
+
+	AddSettingToggle(
+		builder,
+		u"streamer/censor_phones"_q,
 		tr::lng_ghostgram_streamer_censor_phones(),
-		GhostGram::Settings::StreamerCensorPhones,
+		GhostGram::Settings::StreamerCensorPhonesValue(),
 		GhostGram::Settings::SetStreamerCensorPhones,
 		{ u"streamer"_q, u"phones"_q });
 	builder.addDividerText(tr::lng_ghostgram_streamer_censor_phones_about());
+}
+
+void BuildToolsCategory(SectionBuilder &builder) {
+	const auto controller = builder.controller();
+	builder.addDividerText(tr::lng_settings_ghostgram_tools_desc());
 
 	builder.addSubsectionTitle(rpl::single(u"Локальные расширения"_q));
 
@@ -1063,7 +1059,7 @@ void BuildToolsCategory(SectionBuilder &builder) {
 		builder,
 		u"tools/bookmarks"_q,
 		tr::lng_ghostgram_tools_bookmarks(),
-		GhostGram::Settings::BookmarksEnabled,
+		GhostGram::Settings::BookmarksEnabledValue(),
 		GhostGram::Settings::SetBookmarksEnabled,
 		{ u"bookmarks"_q });
 	builder.addDividerText(tr::lng_ghostgram_tools_bookmarks_about());
@@ -1087,20 +1083,20 @@ void BuildToolsCategory(SectionBuilder &builder) {
 		builder,
 		u"tools/chat_notes"_q,
 		tr::lng_ghostgram_tools_chat_notes(),
-		GhostGram::Settings::ChatNotesEnabled,
+		GhostGram::Settings::ChatNotesEnabledValue(),
 		GhostGram::Settings::SetChatNotesEnabled,
 		{ u"notes"_q });
 	builder.addDividerText(tr::lng_ghostgram_tools_chat_notes_about());
 }
 
-void BuildAdvancedCategory(SectionBuilder &builder) {
+void BuildBackupCategory(SectionBuilder &builder) {
 	const auto controller = builder.controller();
-	builder.addDividerText(tr::lng_settings_ghostgram_advanced_desc());
+	builder.addDividerText(tr::lng_settings_ghostgram_backup_desc());
 
 	builder.addSubsectionTitle(rpl::single(u"Управление конфигурацией"_q));
 
 	builder.addButton({
-		.id = u"advanced/export"_q,
+		.id = u"backup/export"_q,
 		.title = rpl::single(u"Экспорт настроек GhostGram"_q),
 		.icon = { &st::menuIconExport },
 		.onClick = [=] {
@@ -1122,7 +1118,7 @@ void BuildAdvancedCategory(SectionBuilder &builder) {
 	});
 
 	builder.addButton({
-		.id = u"advanced/import"_q,
+		.id = u"backup/import"_q,
 		.title = rpl::single(u"Импорт настроек GhostGram"_q),
 		.icon = { &st::menuIconRestore },
 		.onClick = [=] {
@@ -1150,7 +1146,7 @@ void BuildAdvancedCategory(SectionBuilder &builder) {
 	});
 
 	builder.addButton({
-		.id = u"advanced/reset"_q,
+		.id = u"backup/reset"_q,
 		.title = rpl::single(u"Сбросить настройки GhostGram по умолчанию"_q),
 		.icon = { &st::menuIconClear },
 		.onClick = [=] {
@@ -1167,6 +1163,30 @@ void BuildAdvancedCategory(SectionBuilder &builder) {
 		u"Каталог данных клиента: %APPDATA%\\GhostGram Desktop"_q));
 }
 
+void BuildAdvancedCategory(SectionBuilder &builder) {
+	builder.addDividerText(tr::lng_settings_ghostgram_advanced_desc());
+
+	builder.addSubsectionTitle(rpl::single(u"Сеть и отладка"_q));
+
+	AddSettingToggle(
+		builder,
+		u"advanced/block_telemetry"_q,
+		tr::lng_ghostgram_privacy_block_telemetry(),
+		GhostGram::Settings::BlockTelemetryValue(),
+		GhostGram::Settings::SetBlockTelemetry,
+		{ u"telemetry"_q, u"network"_q });
+	builder.addDividerText(tr::lng_ghostgram_privacy_block_telemetry_about());
+
+	AddSettingToggle(
+		builder,
+		u"advanced/show_peer_id"_q,
+		tr::lng_ghostgram_show_peer_id(),
+		GhostGram::Settings::ShowPeerIdValue(),
+		GhostGram::Settings::SetShowPeerId,
+		{ u"peer"_q, u"id"_q, u"debug"_q });
+	builder.addDividerText(tr::lng_ghostgram_show_peer_id_about());
+}
+
 void BuildAboutCategory(SectionBuilder &builder) {
 	builder.addDividerText(tr::lng_settings_ghostgram_about_page_desc());
 
@@ -1181,7 +1201,7 @@ void BuildAboutCategory(SectionBuilder &builder) {
 		u"Все настройки и данные хранятся изолированно в профиле GhostGram Desktop."_q));
 }
 
-// Meta definitions for all 12 categories
+// Meta definitions for all 14 categories
 const auto kOverviewMeta = BuildHelper({
 	.id = GhostGramOverview::Id(),
 	.parentId = GhostGramId(),
@@ -1245,12 +1265,26 @@ const auto kNotificationsMeta = BuildHelper({
 	.icon = &st::menuIconNotifications,
 }, BuildNotificationsCategory);
 
+const auto kStreamerMeta = BuildHelper({
+	.id = GhostGramStreamer::Id(),
+	.parentId = GhostGramId(),
+	.title = &tr::lng_settings_ghostgram_streamer,
+	.icon = &st::menuIconExperimental,
+}, BuildStreamerCategory);
+
 const auto kToolsMeta = BuildHelper({
 	.id = GhostGramTools::Id(),
 	.parentId = GhostGramId(),
 	.title = &tr::lng_settings_ghostgram_tools,
-	.icon = &st::menuIconExperimental,
+	.icon = &st::menuIconSavedMessages,
 }, BuildToolsCategory);
+
+const auto kBackupMeta = BuildHelper({
+	.id = GhostGramBackup::Id(),
+	.parentId = GhostGramId(),
+	.title = &tr::lng_settings_ghostgram_backup,
+	.icon = &st::menuIconExport,
+}, BuildBackupCategory);
 
 const auto kAdvancedMeta = BuildHelper({
 	.id = GhostGramAdvanced::Id(),
@@ -1329,16 +1363,28 @@ const auto kMeta = BuildHelper({
 		.keywords = { u"notifications"_q, u"alerts"_q },
 	});
 	builder.addSectionButton({
+		.title = tr::lng_settings_ghostgram_streamer(),
+		.targetSection = GhostGramStreamer::Id(),
+		.icon = { &st::menuIconExperimental },
+		.keywords = { u"streamer"_q, u"broadcast"_q, u"hide"_q },
+	});
+	builder.addSectionButton({
 		.title = tr::lng_settings_ghostgram_tools(),
 		.targetSection = GhostGramTools::Id(),
-		.icon = { &st::menuIconExperimental },
-		.keywords = { u"tools"_q, u"streamer"_q, u"bookmarks"_q },
+		.icon = { &st::menuIconSavedMessages },
+		.keywords = { u"tools"_q, u"bookmarks"_q, u"notes"_q },
+	});
+	builder.addSectionButton({
+		.title = tr::lng_settings_ghostgram_backup(),
+		.targetSection = GhostGramBackup::Id(),
+		.icon = { &st::menuIconExport },
+		.keywords = { u"export"_q, u"import"_q, u"backup"_q, u"reset"_q },
 	});
 	builder.addSectionButton({
 		.title = tr::lng_settings_ghostgram_advanced(),
 		.targetSection = GhostGramAdvanced::Id(),
 		.icon = { &st::menuIconManage },
-		.keywords = { u"advanced"_q, u"export"_q, u"import"_q },
+		.keywords = { u"advanced"_q, u"telemetry"_q, u"debug"_q },
 	});
 	builder.addSectionButton({
 		.title = tr::lng_settings_ghostgram_about_page(),
@@ -1357,7 +1403,9 @@ const SectionBuildMethod kMessagesSection = kMessagesMeta.build;
 const SectionBuildMethod kPrivacySection = kPrivacyMeta.build;
 const SectionBuildMethod kMediaSection = kMediaMeta.build;
 const SectionBuildMethod kNotificationsSection = kNotificationsMeta.build;
+const SectionBuildMethod kStreamerSection = kStreamerMeta.build;
 const SectionBuildMethod kToolsSection = kToolsMeta.build;
+const SectionBuildMethod kBackupSection = kBackupMeta.build;
 const SectionBuildMethod kAdvancedSection = kAdvancedMeta.build;
 const SectionBuildMethod kAboutSection = kAboutMeta.build;
 const SectionBuildMethod kGhostGramSection = kMeta.build;
@@ -1516,6 +1564,23 @@ void GhostGramNotifications::setupContent() {
 	Ui::ResizeFitChild(this, content);
 }
 
+GhostGramStreamer::GhostGramStreamer(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: Section(parent, controller) {
+	setupContent();
+}
+
+rpl::producer<QString> GhostGramStreamer::title() {
+	return tr::lng_settings_ghostgram_streamer();
+}
+
+void GhostGramStreamer::setupContent() {
+	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+	build(content, kStreamerSection);
+	Ui::ResizeFitChild(this, content);
+}
+
 GhostGramTools::GhostGramTools(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
@@ -1530,6 +1595,23 @@ rpl::producer<QString> GhostGramTools::title() {
 void GhostGramTools::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	build(content, kToolsSection);
+	Ui::ResizeFitChild(this, content);
+}
+
+GhostGramBackup::GhostGramBackup(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: Section(parent, controller) {
+	setupContent();
+}
+
+rpl::producer<QString> GhostGramBackup::title() {
+	return tr::lng_settings_ghostgram_backup();
+}
+
+void GhostGramBackup::setupContent() {
+	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+	build(content, kBackupSection);
 	Ui::ResizeFitChild(this, content);
 }
 
@@ -1626,8 +1708,16 @@ Type GhostGramNotificationsId() {
 	return GhostGramNotifications::Id();
 }
 
+Type GhostGramStreamerId() {
+	return GhostGramStreamer::Id();
+}
+
 Type GhostGramToolsId() {
 	return GhostGramTools::Id();
+}
+
+Type GhostGramBackupId() {
+	return GhostGramBackup::Id();
 }
 
 Type GhostGramAdvancedId() {

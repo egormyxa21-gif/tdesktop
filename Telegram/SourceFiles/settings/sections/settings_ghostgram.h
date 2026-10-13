@@ -21,7 +21,9 @@ namespace Settings {
 [[nodiscard]] Type GhostGramPrivacyId();
 [[nodiscard]] Type GhostGramMediaId();
 [[nodiscard]] Type GhostGramNotificationsId();
+[[nodiscard]] Type GhostGramStreamerId();
 [[nodiscard]] Type GhostGramToolsId();
+[[nodiscard]] Type GhostGramBackupId();
 [[nodiscard]] Type GhostGramAdvancedId();
 [[nodiscard]] Type GhostGramAboutId();
 
