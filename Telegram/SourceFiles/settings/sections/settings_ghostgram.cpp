@@ -24,7 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/color_editor.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/widgets/labels.h"
 #include "window/window_session_controller.h"
+#include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
@@ -145,6 +147,154 @@ QByteArray SavedSlotAt(const QByteArray &json, int index) {
 	const auto array = QJsonDocument::fromJson(json).array();
 	return QJsonDocument(
 		array.at(index).toObject()).toJson(QJsonDocument::Compact);
+}
+
+constexpr auto kListedItems = 100;
+
+void ShowBookmarksBox(not_null<Window::SessionController*> controller) {
+	const auto items = GhostGram::History::GetBookmarks();
+	const auto exportData = GhostGram::History::ExportJson();
+	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(rpl::single(u"Закладки GhostGram"_q));
+		if (items.empty()) {
+			box->addRow(object_ptr<Ui::FlatLabel>(
+				box,
+				rpl::single(
+					u"Закладок пока нет. Добавляйте сообщения в закладки через контекстное меню."_q),
+				st::boxLabel));
+		}
+		auto index = 0;
+		for (const auto &bm : items) {
+			if (index++ == kListedItems) {
+				box->addRow(object_ptr<Ui::FlatLabel>(
+					box,
+					rpl::single(
+						u"... и ещё %1"_q
+						+ QString::number(items.size() - kListedItems)),
+					st::boxLabel));
+				break;
+			}
+			const auto button = Ui::CreateChild<Ui::SettingsButton>(
+				box,
+				rpl::single(bm.text),
+				st::settingsButton);
+			button->setClickedCallback([=] {
+				box->closeBox();
+				controller->showPeerHistory(
+					bm.fullId.peer,
+					SectionShow::Way::ClearStack,
+					bm.fullId.msg);
+			});
+			box->addRow(object_ptr<Ui::SettingsButton>(button));
+		}
+		if (!items.empty()) {
+			box->addButton(rpl::single(u"Удалить все"_q), [=] {
+				controller->show(Ui::MakeConfirmBox({
+					.text = u"Удалить все закладки GhostGram?"_q,
+					.confirmed = [=](Fn<void()> close) {
+						GhostGram::History::RemoveAllBookmarks();
+						box->closeBox();
+						close();
+					},
+					.confirmText = u"Удалить"_q,
+				}));
+			});
+		}
+		box->addButton(rpl::single(u"Экспорт в JSON"_q), [=] {
+			const auto path = QStandardPaths::writableLocation(
+				QStandardPaths::DocumentsLocation)
+				+ u"/ghostgram_history.json"_q;
+			auto file = QFile(path);
+			if (file.open(QIODevice::WriteOnly)) {
+				file.write(exportData);
+				file.close();
+			}
+			box->closeBox();
+			controller->show(Ui::MakeInformBox(
+				u"Файл сохранён:\n"_q + path));
+		});
+		box->addButton(rpl::single(u"Закрыть"_q), [=] {
+			box->closeBox();
+		});
+	}));
+}
+
+void ShowSavedMessagesBox(not_null<Window::SessionController*> controller) {
+	const auto deleted = GhostGram::History::GetDeletedMessages();
+	const auto edited = GhostGram::History::GetEditedMessages();
+	const auto exportData = GhostGram::History::ExportJson();
+	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(rpl::single(u"Сохранённая история GhostGram"_q));
+		if (deleted.empty() && edited.empty()) {
+			box->addRow(object_ptr<Ui::FlatLabel>(
+				box,
+				rpl::single(
+					u"Сохранённых сообщений пока нет. Включите Anti-recall или историю правок в настройках."_q),
+				st::boxLabel));
+		}
+		auto listed = 0;
+		for (const auto &msg : deleted) {
+			if (listed == kListedItems) {
+				break;
+			}
+			++listed;
+			const auto title = u"Удалено: %1 — %2"_q
+				.arg(msg.chatTitle)
+				.arg(msg.text.left(80));
+			const auto button = Ui::CreateChild<Ui::SettingsButton>(
+				box,
+				rpl::single(title),
+				st::settingsButton);
+			const auto fullId = msg.fullId;
+			button->setClickedCallback([=] {
+				box->closeBox();
+				controller->showPeerHistory(
+					fullId.peer,
+					SectionShow::Way::ClearStack,
+					fullId.msg);
+			});
+			box->addRow(object_ptr<Ui::SettingsButton>(button));
+		}
+		for (const auto &msg : edited) {
+			if (listed == kListedItems) {
+				break;
+			}
+			++listed;
+			const auto title = u"Правка: %1 — %2"_q
+				.arg(msg.chatTitle)
+				.arg(msg.previousText.left(40)
+					+ u" → %1"_q.arg(msg.text.left(40)));
+			const auto button = Ui::CreateChild<Ui::SettingsButton>(
+				box,
+				rpl::single(title),
+				st::settingsButton);
+			const auto fullId = msg.fullId;
+			button->setClickedCallback([=] {
+				box->closeBox();
+				controller->showPeerHistory(
+					fullId.peer,
+					SectionShow::Way::ClearStack,
+					fullId.msg);
+			});
+			box->addRow(object_ptr<Ui::SettingsButton>(button));
+		}
+		box->addButton(rpl::single(u"Экспорт в JSON"_q), [=] {
+			const auto path = QStandardPaths::writableLocation(
+				QStandardPaths::DocumentsLocation)
+				+ u"/ghostgram_history.json"_q;
+			auto file = QFile(path);
+			if (file.open(QIODevice::WriteOnly)) {
+				file.write(exportData);
+				file.close();
+			}
+			box->closeBox();
+			controller->show(Ui::MakeInformBox(
+				u"Файл сохранён:\n"_q + path));
+		});
+		box->addButton(rpl::single(u"Закрыть"_q), [=] {
+			box->closeBox();
+		});
+	}));
 }
 
 class ThemePreview : public Ui::RpWidget {
@@ -915,6 +1065,16 @@ void BuildMessagesCategory(SectionBuilder &builder) {
 	});
 
 	builder.addButton({
+		.id = u"messages/view_saved"_q,
+		.title = rpl::single(u"Просмотр сохранённой истории"_q),
+		.st = &st::settingsButtonNoIcon,
+		.onClick = [=] {
+			ShowSavedMessagesBox(controller);
+		},
+		.keywords = { u"deleted"_q, u"edited"_q, u"view"_q },
+	});
+
+	builder.addButton({
 		.id = u"messages/clear"_q,
 		.title = rpl::single(u"Очистить локальную историю сообщений"_q),
 		.st = &st::settingsButtonNoIcon,
@@ -1066,15 +1226,10 @@ void BuildToolsCategory(SectionBuilder &builder) {
 
 	builder.addButton({
 		.id = u"tools/bookmarks_stats"_q,
-		.title = rpl::single(u"Сохранённые закладки GhostGram"_q),
+		.title = rpl::single(u"Просмотр закладок GhostGram"_q),
 		.st = &st::settingsButtonNoIcon,
 		.onClick = [=] {
-			const auto count = GhostGram::History::TotalBookmarksCount();
-			controller->show(Ui::MakeInformBox(
-				u"Локальные закладки GhostGram:\n\n"
-				u"• Сохранено закладок: "_q
-				+ QString::number(count)
-				+ u"\n\nВы можете добавлять сообщения в закладки через контекстное меню любого сообщения."_q));
+			ShowBookmarksBox(controller);
 		},
 		.keywords = { u"bookmarks"_q, u"stats"_q },
 	});

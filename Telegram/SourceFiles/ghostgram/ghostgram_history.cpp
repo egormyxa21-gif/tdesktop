@@ -138,7 +138,7 @@ void LoadIfNeeded(State &state) {
 	}
 }
 
-void SaveToDisk(const State &state) {
+QByteArray BuildJson(const State &state) {
 	auto root = QJsonObject();
 	auto deletedArray = QJsonArray();
 	for (const auto &msg : state.deletedMessages) {
@@ -186,9 +186,13 @@ void SaveToDisk(const State &state) {
 	}
 	root["notes"] = notesObj;
 
+	return QJsonDocument(root).toJson(QJsonDocument::Compact);
+}
+
+void SaveToDisk(const State &state) {
 	auto file = QFile(StoragePath());
 	if (file.open(QIODevice::WriteOnly)) {
-		file.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+		file.write(BuildJson(state));
 	}
 }
 
@@ -382,11 +386,42 @@ std::vector<BookmarkItem> GetBookmarks() {
 	return std::vector<BookmarkItem>(state.bookmarks.begin(), state.bookmarks.end());
 }
 
+void RemoveBookmark(FullMsgId fullId) {
+	auto &state = GetState();
+	std::lock_guard<std::mutex> lock(state.mutex);
+	LoadIfNeeded(state);
+	for (auto i = state.bookmarks.begin(); i != state.bookmarks.end(); ++i) {
+		if (i->fullId == fullId) {
+			state.bookmarks.erase(i);
+			SaveToDisk(state);
+			return;
+		}
+	}
+}
+
+void RemoveAllBookmarks() {
+	auto &state = GetState();
+	std::lock_guard<std::mutex> lock(state.mutex);
+	LoadIfNeeded(state);
+	if (state.bookmarks.empty()) {
+		return;
+	}
+	state.bookmarks.clear();
+	SaveToDisk(state);
+}
+
 int TotalBookmarksCount() {
 	auto &state = GetState();
 	std::lock_guard<std::mutex> lock(state.mutex);
 	LoadIfNeeded(state);
 	return int(state.bookmarks.size());
+}
+
+QByteArray ExportJson() {
+	auto &state = GetState();
+	std::lock_guard<std::mutex> lock(state.mutex);
+	LoadIfNeeded(state);
+	return BuildJson(state);
 }
 
 void SaveChatNote(PeerId peerId, const QString &note) {

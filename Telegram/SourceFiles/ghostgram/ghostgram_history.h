@@ -70,8 +70,11 @@ struct BookmarkItem {
 };
 
 void SaveBookmark(FullMsgId fullId, const QString &text);
+void RemoveBookmark(FullMsgId fullId);
+void RemoveAllBookmarks();
 [[nodiscard]] std::vector<BookmarkItem> GetBookmarks();
 [[nodiscard]] int TotalBookmarksCount();
+[[nodiscard]] QByteArray ExportJson();
 
 void SaveChatNote(PeerId peerId, const QString &note);
 [[nodiscard]] QString GetChatNote(PeerId peerId);
