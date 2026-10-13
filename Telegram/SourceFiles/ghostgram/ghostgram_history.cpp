@@ -25,6 +25,20 @@ namespace {
 
 constexpr auto kMaxStoredItems = 50000;
 
+[[nodiscard]] int64 ToInt64(const QJsonValue &value) {
+	if (value.isDouble()) {
+		return static_cast<int64>(value.toDouble());
+	}
+	if (value.isString()) {
+		auto ok = false;
+		const auto result = value.toString().toLongLong(&ok);
+		if (ok) {
+			return result;
+		}
+	}
+	return 0;
+}
+
 struct State {
 	std::mutex mutex;
 	std::deque<SavedMessage> deletedMessages;
@@ -66,8 +80,8 @@ void LoadIfNeeded(State &state) {
 	for (const auto &val : deletedArray) {
 		const auto obj = val.toObject();
 		const auto fullId = FullMsgId(
-			PeerId(obj["peer"].toInteger()),
-			MsgId(obj["msg"].toInteger()));
+			PeerId(uint64(ToInt64(obj["peer"]))),
+			MsgId(ToInt64(obj["msg"])));
 		state.deletedMessages.push_back(SavedMessage{
 			.fullId = fullId,
 			.fromName = obj["from"].toString(),
@@ -85,8 +99,8 @@ void LoadIfNeeded(State &state) {
 		const auto obj = val.toObject();
 		state.editedMessages.push_back(SavedMessage{
 			.fullId = FullMsgId(
-				PeerId(obj["peer"].toInteger()),
-				MsgId(obj["msg"].toInteger())),
+				PeerId(uint64(ToInt64(obj["peer"]))),
+				MsgId(ToInt64(obj["msg"]))),
 			.fromName = obj["from"].toString(),
 			.chatTitle = obj["chat"].toString(),
 			.text = obj["text"].toString(),
@@ -102,8 +116,8 @@ void LoadIfNeeded(State &state) {
 		const auto obj = val.toObject();
 		state.bookmarks.push_back(BookmarkItem{
 			.fullId = FullMsgId(
-				PeerId(obj["peer"].toInteger()),
-				MsgId(obj["msg"].toInteger())),
+				PeerId(uint64(ToInt64(obj["peer"]))),
+				MsgId(ToInt64(obj["msg"]))),
 			.text = obj["text"].toString(),
 			.recordedAt = TimeId(obj["recorded"].toInt()),
 		});

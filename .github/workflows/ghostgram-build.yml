@@ -62,19 +62,38 @@ jobs:
             'C:\ms-playwright',
             'C:\ghcup',
             'C:\Program Files\dotnet',
-            'C:\Program Files\Haskell Stack'
+            'C:\Program Files\Haskell Stack',
+            'C:\Program Files\MySQL',
+            'C:\Program Files\MongoDB',
+            'C:\Program Files\PostgreSQL',
+            'C:\Program Files\Microsoft SQL Server',
+            'C:\Program Files\Microsoft\Edge',
+            'C:\Program Files (x86)\Microsoft\Edge',
+            'C:\Program Files\Microsoft\EdgeWebView',
+            'C:\Program Files\Amazon\AWSCLIV2',
+            'C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2'
           )
           foreach ($t in $targets) {
             if (Test-Path -LiteralPath $t) {
               Remove-Item -LiteralPath $t -Recurse -Force -ErrorAction SilentlyContinue
             }
           }
+          Get-ChildItem -LiteralPath $env:TEMP -Force -ErrorAction SilentlyContinue |
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          Get-ChildItem -LiteralPath 'C:\Windows\Temp' -Force -ErrorAction SilentlyContinue |
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          docker system prune -af 2>$null
           Write-Output ('C free GB: ' + [math]::Round((Get-PSDrive C).Free / 1GB, 1))
+          if (Test-Path 'D:\') {
+            Write-Output ('D free GB: ' + [math]::Round((Get-PSDrive D).Free / 1GB, 1))
+          }
 
       - name: Prepare directories.
         run: |
-          mkdir %userprofile%\TBuild\Libraries
-          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          set TBUILD_ROOT=D:\TBuild
+          if not exist D:\ set TBUILD_ROOT=%userprofile%\TBuild
+          mkdir %TBUILD_ROOT%\Libraries
+          mklink /d %GITHUB_WORKSPACE%\TBuild %TBUILD_ROOT%
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
           echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
 
@@ -163,6 +182,16 @@ jobs:
           }
           Write-Output "Found $f"
 
+      - name: Free temp space before compile.
+        shell: pwsh
+        run: |
+          Get-ChildItem -LiteralPath $env:TEMP -Force -ErrorAction SilentlyContinue |
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Output ('C free GB: ' + [math]::Round((Get-PSDrive C).Free / 1GB, 1))
+          if (Test-Path 'D:\') {
+            Write-Output ('D free GB: ' + [math]::Round((Get-PSDrive D).Free / 1GB, 1))
+          }
+
       # No warnings-as-errors: this run only needs a working test exe.
       - name: GhostGram build.
         run: |
@@ -178,7 +207,7 @@ jobs:
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
 
-          cmake --build ..\out --config Debug --parallel
+          cmake --build ..\out --config Debug --parallel 2
 
       - name: Move artifact.
         run: |

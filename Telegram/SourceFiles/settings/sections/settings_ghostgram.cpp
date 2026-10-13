@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
+#include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_menu_icons.h"
@@ -225,9 +226,9 @@ private:
 };
 
 // Root GhostGram section
-class GhostGram : public Section<GhostGram> {
+class GhostGramRoot : public Section<GhostGramRoot> {
 public:
-	GhostGram(
+	GhostGramRoot(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
 
@@ -879,7 +880,7 @@ const auto kAboutMeta = BuildHelper({
 }, BuildAboutCategory);
 
 const auto kMeta = BuildHelper({
-	.id = GhostGram::Id(),
+	.id = GhostGramRoot::Id(),
 	.parentId = MainId(),
 	.title = &tr::lng_settings_ghostgram,
 	.icon = &st::menuIconStealth,
@@ -1179,18 +1180,18 @@ void GhostGramAbout::setupContent() {
 	Ui::ResizeFitChild(this, content);
 }
 
-GhostGram::GhostGram(
+GhostGramRoot::GhostGramRoot(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : Section(parent, controller) {
 	setupContent();
 }
 
-rpl::producer<QString> GhostGram::title() {
+rpl::producer<QString> GhostGramRoot::title() {
 	return tr::lng_settings_ghostgram();
 }
 
-void GhostGram::setupContent() {
+void GhostGramRoot::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	build(content, kGhostGramSection);
 	Ui::ResizeFitChild(this, content);
@@ -1199,7 +1200,7 @@ void GhostGram::setupContent() {
 } // namespace
 
 Type GhostGramId() {
-	return GhostGram::Id();
+	return GhostGramRoot::Id();
 }
 
 Type GhostGramOverviewId() {

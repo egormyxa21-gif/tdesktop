@@ -390,6 +390,8 @@ ThemePreset CurrentThemePreset() {
 	return GetState().themePreset.current();
 }
 
+namespace {
+
 void ApplyThemePreset(ThemePreset preset) {
 	if (preset == ThemePreset::Default) {
 		Window::Theme::ResetToSomeDefault();
@@ -494,6 +496,8 @@ void ApplyThemePreset(ThemePreset preset) {
 		Window::Theme::KeepApplied();
 	}
 }
+
+} // namespace
 
 void SetThemePreset(ThemePreset value) {
 	auto &state = GetState();
