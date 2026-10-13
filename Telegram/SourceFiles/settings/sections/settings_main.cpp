@@ -368,6 +368,13 @@ void BuildSectionButtons(SectionBuilder &builder) {
 	const auto controller = builder.controller();
 	const auto showOther = builder.showOther();
 
+	builder.addSectionButton({
+		.title = tr::lng_settings_ghostgram(),
+		.targetSection = GhostGramId(),
+		.icon = { &st::menuIconStealth },
+		.keywords = { u"ghostgram"_q, u"ghost"_q, u"mod"_q },
+	});
+
 	if (!session->supportMode()) {
 		builder.addButton({
 			.title = tr::lng_settings_my_account(),
@@ -447,13 +454,6 @@ void BuildSectionButtons(SectionBuilder &builder) {
 		.targetSection = CallsId(),
 		.icon = { &st::menuIconUnmute },
 		.keywords = { u"sessions"_q, u"calls"_q },
-	});
-
-	builder.addSectionButton({
-		.title = tr::lng_settings_ghostgram(),
-		.targetSection = GhostGramId(),
-		.icon = { &st::menuIconStealth },
-		.keywords = { u"ghostgram"_q, u"ghost"_q },
 	});
 
 	builder.addButton({

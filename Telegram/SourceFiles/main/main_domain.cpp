@@ -27,6 +27,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
+#include "ghostgram/ghostgram_settings.h"
+
+#include <algorithm>
 
 namespace Main {
 
@@ -56,6 +59,11 @@ Domain::Domain(const QString &dataName)
 	}) | rpl::flatten_latest(
 	) | rpl::on_next([](const Data::PeerUpdate &update) {
 		CrashReports::SetAnnotation("Username", update.peer->username());
+	}, _lifetime);
+
+	GhostGram::Settings::MaxAccountsValue(
+	) | rpl::on_next([=](int max) {
+		_lastMaxAccounts = std::clamp(max, kMaxAccounts, kPremiumMaxAccounts);
 	}, _lifetime);
 }
 
@@ -612,13 +620,8 @@ void Domain::scheduleWriteAccounts() {
 }
 
 int Domain::maxAccounts() const {
-	const auto premiumCount = ranges::count_if(accounts(), [](
-			const Main::Domain::AccountWithIndex &d) {
-		return d.account->sessionExists()
-			&& (d.account->session().premium()
-				|| d.account->session().isTestMode());
-	});
-	return std::min(int(premiumCount) + kMaxAccounts, kPremiumMaxAccounts);
+	const auto custom = GhostGram::Settings::MaxAccounts();
+	return std::clamp(custom, kMaxAccounts, kPremiumMaxAccounts);
 }
 
 rpl::producer<int> Domain::maxAccountsChanges() const {

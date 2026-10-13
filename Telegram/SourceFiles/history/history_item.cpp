@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/history_unread_things.h"
 #include "history/history.h"
+#include "ghostgram/ghostgram_history.h"
 #include "iv/iv_data.h"
 #include "iv/editor/iv_editor_session.h"
 #include "iv/editor/iv_editor_page_blocks.h"
@@ -2500,6 +2501,18 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 		setServiceText(std::move(serviceText));
 		addToSharedMediaIndex();
 	} else {
+		const auto prevText = originalText().text;
+		if (prevText != updatedText.text) {
+			const auto fromName = from() ? from()->name() : QString();
+			const auto chatTitle = history()->peer->name();
+			GhostGram::History::SaveEditedMessage(
+				fullId(),
+				fromName,
+				chatTitle,
+				prevText,
+				updatedText.text,
+				date());
+		}
 		setText(std::move(updatedText));
 		addToSharedMediaIndex();
 	}

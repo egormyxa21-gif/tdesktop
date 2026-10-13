@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "ghostgram/ghostgram_history.h"
 #include "core/mime_type.h" // Core::IsMimeSticker
 #include "ui/image/image_location_factory.h" // Images::FromPhotoSize
 #include "ui/text/format_values.h" // Ui::FormatPhone
@@ -3426,6 +3427,16 @@ void Session::removeDependencyMessage(not_null<HistoryItem*> item) {
 void Session::unregisterMessage(not_null<HistoryItem*> item) {
 	const auto peerId = item->history()->peer->id;
 	const auto itemId = item->id;
+	if (!item->isService()) {
+		const auto fromName = item->from() ? item->from()->name() : QString();
+		const auto chatTitle = item->history()->peer->name();
+		GhostGram::History::SaveDeletedMessage(
+			item->fullId(),
+			fromName,
+			chatTitle,
+			item->originalText().text,
+			item->date());
+	}
 	_itemRemoved.fire_copy(item);
 	if (item->hasPossibleRestrictions()) {
 		_possiblyRestricted.remove(item);

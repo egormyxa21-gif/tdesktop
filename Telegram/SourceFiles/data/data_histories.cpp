@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "core/application.h"
 #include "apiwrap.h"
+#include "ghostgram/ghostgram_settings.h"
 
 namespace Data {
 namespace {
@@ -281,6 +282,9 @@ void Histories::readInboxTill(
 		return;
 	} else if (!history->trackUnreadMessages()) {
 		DEBUG_LOG(("Reading: readInboxTill finish 2."));
+		return;
+	} else if (!force && GhostGram::Settings::GhostReadReceipts()) {
+		DEBUG_LOG(("Reading: ghost mode read receipt suppressed."));
 		return;
 	}
 	const auto maybeState = lookup(history);
@@ -735,6 +739,11 @@ void Histories::sendReadRequests() {
 }
 
 void Histories::sendReadRequest(not_null<History*> history, State &state) {
+	if (GhostGram::Settings::GhostReadReceipts()) {
+		state.willReadWhen = 0;
+		state.willReadTill = 0;
+		return;
+	}
 	Expects(state.willReadTill > state.sentReadTill);
 
 	const auto tillId = state.sentReadTill = base::take(state.willReadTill);

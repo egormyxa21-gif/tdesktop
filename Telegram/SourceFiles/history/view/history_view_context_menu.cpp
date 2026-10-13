@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_context_menu.h"
 
+#include "ghostgram/ghostgram_settings.h"
+#include "ghostgram/ghostgram_history.h"
 #include "api/api_attached_stickers.h"
 #include "api/api_editing.h"
 #include "api/api_global_privacy.h"
@@ -1422,6 +1424,15 @@ void AddMessageActions(
 		AddEphemeralAboutAction(menu, request.item);
 	}
 	AddRescheduleAction(menu, request, list);
+
+	if (GhostGram::Settings::BookmarksEnabled() && request.item && request.selectedItems.empty()) {
+		const auto itemId = request.item->fullId();
+		const auto itemText = request.item->originalText().text;
+		menu->addAction(u"В закладки GhostGram"_q, [=] {
+			GhostGram::History::SaveBookmark(itemId, itemText);
+			list->controller()->show(Ui::MakeInformBox(u"Сообщение сохранено в локальные закладки GhostGram."_q));
+		}, &st::menuIconFave);
+	}
 }
 
 void AddCopyLinkAction(

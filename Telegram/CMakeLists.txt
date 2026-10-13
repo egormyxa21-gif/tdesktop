@@ -1917,6 +1917,10 @@ PRIVATE
     settings/settings_experimental.h
     settings/sections/settings_folders.cpp
     settings/sections/settings_folders.h
+    ghostgram/ghostgram_settings.cpp
+    ghostgram/ghostgram_settings.h
+    ghostgram/ghostgram_history.cpp
+    ghostgram/ghostgram_history.h
     settings/sections/settings_ghostgram.cpp
     settings/sections/settings_ghostgram.h
     settings/sections/settings_global_ttl.cpp

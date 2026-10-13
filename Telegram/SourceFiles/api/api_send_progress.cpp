@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "data/data_peer_values.h"
 #include "apiwrap.h"
+#include "ghostgram/ghostgram_settings.h"
 
 namespace Api {
 namespace {
@@ -152,6 +153,9 @@ void SendProgressManager::send(const Key &key, int progress) {
 }
 
 bool SendProgressManager::skipRequest(const Key &key) const {
+	if (GhostGram::Settings::GhostTyping()) {
+		return true;
+	}
 	const auto user = key.history->peer->asUser();
 	if (!user) {
 		return false;

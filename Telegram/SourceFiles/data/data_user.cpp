@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_user.h"
 
+#include "ghostgram/ghostgram_settings.h"
 #include "api/api_credits.h"
 #include "api/api_global_privacy.h"
 #include "api/api_sensitive_content.h"
@@ -801,6 +802,10 @@ void UserData::setBotVerifyDetailsIcon(DocumentId iconId) {
 }
 
 const QString &UserData::phone() const {
+	if (GhostGram::Settings::StreamerMode() && GhostGram::Settings::StreamerCensorPhones() && !_phone.isEmpty()) {
+		static const auto masked = QString(u"+* *** ***-**-**"_q);
+		return masked;
+	}
 	return _phone;
 }
 

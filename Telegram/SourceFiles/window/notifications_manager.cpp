@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/notifications_manager.h"
 
+#include "ghostgram/ghostgram_settings.h"
 #include "base/options.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_key_modifiers.h"
@@ -1092,10 +1093,13 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 	const auto topic = item ? item->topic() : nullptr;
 
 	auto result = DisplayOptions();
+	const auto streamer = GhostGram::Settings::StreamerMode();
 	result.hideNameAndPhoto = hideEverything
-		|| (view > Core::Settings::NotifyView::ShowName);
+		|| (view > Core::Settings::NotifyView::ShowName)
+		|| (streamer && (GhostGram::Settings::StreamerHideNames() || GhostGram::Settings::StreamerHideAvatars()));
 	result.hideMessageText = hideEverything
-		|| (view > Core::Settings::NotifyView::ShowPreview);
+		|| (view > Core::Settings::NotifyView::ShowPreview)
+		|| streamer;
 	result.hideMarkAsRead = result.hideMessageText
 		|| (type != Data::ItemNotificationType::Message)
 		|| !item

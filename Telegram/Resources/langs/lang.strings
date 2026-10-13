@@ -880,12 +880,90 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_peer_to_peer_about" = "Disabling peer-to-peer will relay all calls through Telegram servers to avoid revealing your IP address, but may decrease audio and video quality.";
 "lng_settings_advanced" = "Advanced";
 "lng_settings_ghostgram" = "GhostGram";
-"lng_settings_ghostgram_about" = "Настройки клиента";
+"lng_settings_ghostgram_about" = "Центр управления модом GhostGram Desktop";
+"lng_settings_ghostgram_overview" = "Обзор GhostGram";
+"lng_settings_ghostgram_overview_desc" = "Сводка состояния клиента, активные модули и быстрый статус.";
 "lng_settings_ghostgram_general" = "Основные";
-"lng_settings_ghostgram_interface" = "Интерфейс";
+"lng_settings_ghostgram_general_desc" = "Базовые параметры клиента, запуск и интеграция с системой.";
+"lng_settings_ghostgram_ghost" = "Ghost Mode";
+"lng_settings_ghostgram_ghost_desc" = "Режим невидимки: скрытие прочтения сообщений, набора текста и активности.";
+"lng_settings_ghostgram_accounts" = "Аккаунты";
+"lng_settings_ghostgram_accounts_desc" = "Управление мультиаккаунтами без искусственных ограничений клиента.";
+"lng_settings_ghostgram_interface" = "Интерфейс и темы";
+"lng_settings_ghostgram_interface_desc" = "Стили оформления, цветовые палитры Obsidian, Phantom, Midnight, Violet, Arctic.";
+"lng_settings_ghostgram_messages" = "Сообщения и история";
+"lng_settings_ghostgram_messages_desc" = "Локальное сохранение истории, Anti-recall удалённых сообщений и история правок.";
 "lng_settings_ghostgram_privacy" = "Приватность";
+"lng_settings_ghostgram_privacy_desc" = "Пересылка без автора, блокировка телеметрии и защита данных.";
+"lng_settings_ghostgram_media" = "Медиа и загрузки";
+"lng_settings_ghostgram_media_desc" = "Настройки автоматической загрузки и сохранение кэша медиафайлов.";
+"lng_settings_ghostgram_notifications" = "Уведомления";
+"lng_settings_ghostgram_notifications_desc" = "Тонкая настройка оповещений, звуков и режима приватности в уведомлениях.";
 "lng_settings_ghostgram_tools" = "Инструменты";
-"lng_settings_ghostgram_empty" = "Пока пусто";
+"lng_settings_ghostgram_tools_desc" = "Режим стримера, локальные закладки и заметки к чатам.";
+"lng_settings_ghostgram_advanced" = "Расширенные настройки";
+"lng_settings_ghostgram_advanced_desc" = "Параметры разработчика, хранилище конфигурации и резервное копирование.";
+"lng_settings_ghostgram_about_page" = "О программе";
+"lng_settings_ghostgram_about_page_desc" = "Информация о версии GhostGram Desktop, авторах и лицензии.";
+"lng_settings_ghostgram_empty" = "Параметры категории загружаются...";
+
+"lng_ghostgram_ghost_read_receipts" = "Скрывать прочтение сообщений";
+"lng_ghostgram_ghost_read_receipts_about" = "Не отправлять серверу запросы подтверждения прочтения (сообщения остаются непрочитанными для собеседника).";
+"lng_ghostgram_ghost_typing" = "Скрывать статус набора текста";
+"lng_ghostgram_ghost_typing_about" = "Не отправлять событие набора сообщения при вводе текста.";
+"lng_ghostgram_ghost_stories" = "Скрывать просмотр историй";
+"lng_ghostgram_ghost_stories_about" = "Не отмечать просмотр историй контактов.";
+"lng_ghostgram_ghost_offline" = "Скрывать активность онлайн";
+"lng_ghostgram_ghost_offline_about" = "Не отправлять статус активности при переходе по диалогам.";
+
+"lng_ghostgram_accounts_limit" = "Максимум активных аккаунтов";
+"lng_ghostgram_accounts_limit_about" = "Собственный расширенный лимит GhostGram для одновременного подключения.";
+"lng_ghostgram_accounts_fast_switch" = "Быстрое переключение аккаунтов";
+"lng_ghostgram_accounts_fast_switch_about" = "Удобный список для мгновенного перехода между профилями.";
+
+"lng_ghostgram_streamer_mode" = "Режим стримера";
+"lng_ghostgram_streamer_mode_about" = "Быстрое скрытие конфиденциальной информации на экране.";
+"lng_ghostgram_streamer_hide_names" = "Скрывать имена и логины";
+"lng_ghostgram_streamer_hide_names_about" = "Заменять отображаемые имена на псевдонимы при трансляции.";
+"lng_ghostgram_streamer_hide_avatars" = "Скрывать аватары";
+"lng_ghostgram_streamer_hide_avatars_about" = "Скрывать фотографии профилей и чатов.";
+"lng_ghostgram_streamer_hide_previews" = "Скрывать превью сообщений";
+"lng_ghostgram_streamer_hide_previews_about" = "Размывать или скрывать текст и медиа в превью.";
+"lng_ghostgram_streamer_censor_phones" = "Скрывать номера телефонов";
+"lng_ghostgram_streamer_censor_phones_about" = "Маскировать номера телефонов в профиле и настройках.";
+
+"lng_ghostgram_anti_recall" = "Anti-recall (сохранение удалённых)";
+"lng_ghostgram_anti_recall_about" = "Сохранять копию полученных сообщений локально, даже если собеседник их удалил.";
+"lng_ghostgram_anti_recall_mark" = "Отметка удалённых сообщений";
+"lng_ghostgram_anti_recall_mark_about" = "Показывать специальную метку у сохранённых удалённых сообщений.";
+"lng_ghostgram_edit_history" = "История редактирования сообщений";
+"lng_ghostgram_edit_history_about" = "Локально сохранять промежуточные версии отредактированных сообщений.";
+
+"lng_ghostgram_theme_preset" = "Тема оформления GhostGram";
+"lng_ghostgram_theme_obsidian" = "Obsidian (Глубокий чёрный)";
+"lng_ghostgram_theme_phantom" = "Phantom (Призрачный монохром)";
+"lng_ghostgram_theme_midnight" = "Midnight (Полуночный синий)";
+"lng_ghostgram_theme_violet" = "Violet (Неоновый фиолетовый)";
+"lng_ghostgram_theme_arctic" = "Arctic (Ледяной контраст)";
+"lng_ghostgram_compact_chats" = "Компактный список чатов";
+"lng_ghostgram_compact_chats_about" = "Уменьшить высоту строк в списке диалогов для отображения большего числа чатов.";
+"lng_ghostgram_show_peer_id" = "Показывать ID пользователя / чата";
+"lng_ghostgram_show_peer_id_about" = "Отображать числовой идентификатор Telegram в профиле собеседника.";
+"lng_ghostgram_hide_sponsored" = "Скрывать спонсированные сообщения";
+"lng_ghostgram_hide_sponsored_about" = "Не показывать рекламные посты в каналах.";
+
+"lng_ghostgram_privacy_forward_clean" = "Пересылка без автора";
+"lng_ghostgram_privacy_forward_clean_about" = "Отправлять пересылаемые сообщения как обычный текст без ссылки на источник.";
+"lng_ghostgram_privacy_block_telemetry" = "Блокировать отчёты и телеметрию";
+"lng_ghostgram_privacy_block_telemetry_about" = "Отключить отправку логов и аналитических данных.";
+
+"lng_ghostgram_media_preserve" = "Сохранять удалённые медиафайлы";
+"lng_ghostgram_media_preserve_about" = "Не удалять кэш фотографий и документов при удалении исходного сообщения.";
+
+"lng_ghostgram_tools_bookmarks" = "Локальные закладки";
+"lng_ghostgram_tools_bookmarks_about" = "Возможность добавлять избранные сообщения в локальный список закладок.";
+"lng_ghostgram_tools_chat_notes" = "Заметки к чатам";
+"lng_ghostgram_tools_chat_notes_about" = "Локальные персональные заметки к пользователям и группам.";
 "lng_settings_stickers_emoji" = "Stickers and emoji";
 "lng_settings_messages" = "Messages";
 "lng_settings_themes" = "Themes";

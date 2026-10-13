@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_peer.h"
 
+#include "ghostgram/ghostgram_settings.h"
 #include "api/api_sensitive_content.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -461,7 +462,9 @@ void PeerData::paintUserpic(
 		return;
 	}
 	const auto size = context.size;
-	const auto cloud = userpicCloudImage(view);
+	const auto hideAvatars = GhostGram::Settings::StreamerMode()
+		&& GhostGram::Settings::StreamerHideAvatars();
+	const auto cloud = hideAvatars ? nullptr : userpicCloudImage(view);
 	const auto ratio = style::DevicePixelRatio();
 	if (context.shape == Ui::PeerUserpicShape::Auto) {
 		context.shape = userpicShape();
@@ -1331,6 +1334,10 @@ int PeerData::nameVersion() const {
 }
 
 const QString &PeerData::name() const {
+	if (GhostGram::Settings::StreamerMode() && GhostGram::Settings::StreamerHideNames()) {
+		static const auto hidden = QString(u"Hidden User"_q);
+		return hidden;
+	}
 	if (const auto to = migrateTo()) {
 		return to->name();
 	} else if (const auto broadcast = monoforumBroadcast()) {
@@ -1340,6 +1347,10 @@ const QString &PeerData::name() const {
 }
 
 const QString &PeerData::shortName() const {
+	if (GhostGram::Settings::StreamerMode() && GhostGram::Settings::StreamerHideNames()) {
+		static const auto hidden = QString(u"Hidden"_q);
+		return hidden;
+	}
 	if (const auto user = asUser()) {
 		return user->firstName.isEmpty() ? user->lastName : user->firstName;
 	} else if (const auto to = migrateTo()) {
