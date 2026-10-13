@@ -155,12 +155,12 @@ void ShowBookmarksBox(not_null<Window::SessionController*> controller) {
 	const auto items = GhostGram::History::GetBookmarks();
 	const auto exportData = GhostGram::History::ExportJson();
 	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-		box->setTitle(rpl::single(u"Закладки GhostGram"_q));
+		box->setTitle(tr::lng_ghostgram_ui_zakladki_ghostgram());
 		if (items.empty()) {
 			box->addRow(object_ptr<Ui::FlatLabel>(
 				box,
 				rpl::single(
-					u"Закладок пока нет. Добавляйте сообщения в закладки через контекстное меню."_q),
+					tr::lng_ghostgram_ui_zakladok_poka_net_dobavlyayte_so(tr::now)),
 				st::boxLabel));
 		}
 		auto index = 0;
@@ -169,7 +169,7 @@ void ShowBookmarksBox(not_null<Window::SessionController*> controller) {
 				box->addRow(object_ptr<Ui::FlatLabel>(
 					box,
 					rpl::single(
-						u"... и ещё %1"_q
+						tr::lng_ghostgram_ui_i_esche_1(tr::now)
 						+ QString::number(items.size() - kListedItems)),
 					st::boxLabel));
 				break;
@@ -188,19 +188,19 @@ void ShowBookmarksBox(not_null<Window::SessionController*> controller) {
 			box->addRow(object_ptr<Ui::SettingsButton>(button));
 		}
 		if (!items.empty()) {
-			box->addButton(rpl::single(u"Удалить все"_q), [=] {
+			box->addButton(tr::lng_ghostgram_ui_udalit_vse(), [=] {
 				controller->show(Ui::MakeConfirmBox({
-					.text = u"Удалить все закладки GhostGram?"_q,
+					.text = tr::lng_ghostgram_ui_udalit_vse_zakladki_ghostgram(tr::now),
 					.confirmed = [=](Fn<void()> close) {
 						GhostGram::History::RemoveAllBookmarks();
 						box->closeBox();
 						close();
 					},
-					.confirmText = u"Удалить"_q,
+					.confirmText = tr::lng_ghostgram_ui_udalit(tr::now),
 				}));
 			});
 		}
-		box->addButton(rpl::single(u"Экспорт в JSON"_q), [=] {
+		box->addButton(tr::lng_ghostgram_ui_eksport_v_json(), [=] {
 			const auto path = QStandardPaths::writableLocation(
 				QStandardPaths::DocumentsLocation)
 				+ u"/ghostgram_history.json"_q;
@@ -211,9 +211,9 @@ void ShowBookmarksBox(not_null<Window::SessionController*> controller) {
 			}
 			box->closeBox();
 			controller->show(Ui::MakeInformBox(
-				u"Файл сохранён:\n"_q + path));
+				tr::lng_ghostgram_ui_file_saved_to(tr::now) + path));
 		});
-		box->addButton(rpl::single(u"Закрыть"_q), [=] {
+		box->addButton(tr::lng_ghostgram_ui_zakryt(), [=] {
 			box->closeBox();
 		});
 	}));
@@ -224,12 +224,12 @@ void ShowSavedMessagesBox(not_null<Window::SessionController*> controller) {
 	const auto edited = GhostGram::History::GetEditedMessages();
 	const auto exportData = GhostGram::History::ExportJson();
 	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-		box->setTitle(rpl::single(u"Сохранённая история GhostGram"_q));
+		box->setTitle(tr::lng_ghostgram_ui_sokhranennaya_istoriya_ghostgram());
 		if (deleted.empty() && edited.empty()) {
 			box->addRow(object_ptr<Ui::FlatLabel>(
 				box,
 				rpl::single(
-					u"Сохранённых сообщений пока нет. Включите Anti-recall или историю правок в настройках."_q),
+					tr::lng_ghostgram_ui_sokhranennykh_soobscheniy_poka_n(tr::now)),
 				st::boxLabel));
 		}
 		auto listed = 0;
@@ -238,7 +238,7 @@ void ShowSavedMessagesBox(not_null<Window::SessionController*> controller) {
 				break;
 			}
 			++listed;
-			const auto title = u"Удалено: %1 — %2"_q
+			const auto title = tr::lng_ghostgram_ui_udaleno_1_2(tr::now)
 				.arg(msg.chatTitle)
 				.arg(msg.text.left(80));
 			const auto button = Ui::CreateChild<Ui::SettingsButton>(
@@ -260,7 +260,7 @@ void ShowSavedMessagesBox(not_null<Window::SessionController*> controller) {
 				break;
 			}
 			++listed;
-			const auto title = u"Правка: %1 — %2"_q
+			const auto title = tr::lng_ghostgram_ui_pravka_1_2(tr::now)
 				.arg(msg.chatTitle)
 				.arg(msg.previousText.left(40)
 					+ u" → %1"_q.arg(msg.text.left(40)));
@@ -278,7 +278,7 @@ void ShowSavedMessagesBox(not_null<Window::SessionController*> controller) {
 			});
 			box->addRow(object_ptr<Ui::SettingsButton>(button));
 		}
-		box->addButton(rpl::single(u"Экспорт в JSON"_q), [=] {
+		box->addButton(tr::lng_ghostgram_ui_eksport_v_json(), [=] {
 			const auto path = QStandardPaths::writableLocation(
 				QStandardPaths::DocumentsLocation)
 				+ u"/ghostgram_history.json"_q;
@@ -289,9 +289,9 @@ void ShowSavedMessagesBox(not_null<Window::SessionController*> controller) {
 			}
 			box->closeBox();
 			controller->show(Ui::MakeInformBox(
-				u"Файл сохранён:\n"_q + path));
+				tr::lng_ghostgram_ui_file_saved_to(tr::now) + path));
 		});
-		box->addButton(rpl::single(u"Закрыть"_q), [=] {
+		box->addButton(tr::lng_ghostgram_ui_zakryt(), [=] {
 			box->closeBox();
 		});
 	}));
@@ -556,7 +556,7 @@ private:
 void BuildOverviewCategory(SectionBuilder &builder) {
 	builder.addDividerText(tr::lng_settings_ghostgram_overview_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Быстрый статус модулей"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_bystryy_status_moduley());
 
 	AddSettingToggle(
 		builder,
@@ -608,7 +608,7 @@ void BuildOverviewCategory(SectionBuilder &builder) {
 void BuildGeneralCategory(SectionBuilder &builder) {
 	builder.addDividerText(tr::lng_settings_ghostgram_general_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Интерфейс диалогов"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_interfeys_dialogov());
 	AddSettingToggle(
 		builder,
 		u"general/compact_chats"_q,
@@ -618,7 +618,7 @@ void BuildGeneralCategory(SectionBuilder &builder) {
 		{ u"compact"_q, u"chats"_q });
 	builder.addDividerText(tr::lng_ghostgram_compact_chats_about());
 
-	builder.addSubsectionTitle(rpl::single(u"Фильтрация контента"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_filtratsiya_kontenta());
 	AddSettingToggle(
 		builder,
 		u"general/hide_sponsored"_q,
@@ -632,7 +632,7 @@ void BuildGeneralCategory(SectionBuilder &builder) {
 void BuildGhostCategory(SectionBuilder &builder) {
 	builder.addDividerText(tr::lng_settings_ghostgram_ghost_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Приватность сообщений"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_privatnost_soobscheniy());
 	AddSettingToggle(
 		builder,
 		u"ghost/read_receipts"_q,
@@ -651,7 +651,7 @@ void BuildGhostCategory(SectionBuilder &builder) {
 		{ u"typing"_q, u"status"_q });
 	builder.addDividerText(tr::lng_ghostgram_ghost_typing_about());
 
-	builder.addSubsectionTitle(rpl::single(u"Приватность историй и статуса"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_privatnost_istoriy_i_statusa());
 	AddSettingToggle(
 		builder,
 		u"ghost/stories"_q,
@@ -674,7 +674,7 @@ void BuildGhostCategory(SectionBuilder &builder) {
 void BuildAccountsCategory(SectionBuilder &builder) {
 	builder.addDividerText(tr::lng_settings_ghostgram_accounts_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Управление аккаунтами"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_upravlenie_akkauntami());
 
 	AddSettingToggle(
 		builder,
@@ -685,17 +685,17 @@ void BuildAccountsCategory(SectionBuilder &builder) {
 		{ u"switch"_q, u"accounts"_q });
 	builder.addDividerText(tr::lng_ghostgram_accounts_fast_switch_about());
 
-	builder.addSubsectionTitle(rpl::single(u"Лимит активных подключений"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_limit_aktivnykh_podklyucheniy());
 
 	const auto limits = { 6, 10, 15, 20 };
 	for (const auto limit : limits) {
 		builder.addButton({
 			.id = u"accounts/limit_"_q + QString::number(limit),
-			.title = rpl::single(QString::number(limit) + u" аккаунтов"_q),
+			.title = rpl::single(QString::number(limit) + tr::lng_ghostgram_ui_akkauntov(tr::now)),
 			.st = &st::settingsButtonNoIcon,
 			.label = GhostGram::Settings::MaxAccountsValue()
 				| rpl::map([=](int cur) {
-					return (cur == limit) ? u"(Активно)"_q : QString();
+					return (cur == limit) ? tr::lng_ghostgram_ui_aktivno(tr::now) : QString();
 				}),
 			.onClick = [=] {
 				GhostGram::Settings::SetMaxAccounts(limit);
@@ -710,7 +710,7 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 	const auto controller = builder.controller();
 	builder.addDividerText(tr::lng_settings_ghostgram_interface_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Цветовые темы GhostGram"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_tsvetovye_temy_ghostgram());
 
 	struct ThemeOption {
 		GhostGram::Settings::ThemePreset preset;
@@ -762,7 +762,7 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 			.st = &st::settingsButtonNoIcon,
 			.label = GhostGram::Settings::ThemePresetValue()
 				| rpl::map([=](GhostGram::Settings::ThemePreset cur) {
-					return (cur == preset) ? u"(Выбрана)"_q : QString();
+					return (cur == preset) ? tr::lng_ghostgram_ui_vybrana(tr::now) : QString();
 				}),
 			.onClick = [=] {
 				GhostGram::Settings::SetThemePreset(preset);
@@ -774,7 +774,7 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 	builder.addDivider();
 	builder.addSkip();
 
-	builder.addSubsectionTitle(rpl::single(u"Редактор темы"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_redaktor_temy());
 
 	builder.add([](const WidgetContext &ctx) {
 		const auto preview = new ThemePreview(ctx.container);
@@ -790,14 +790,14 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 		rpl::producer<QString> title;
 	};
 	const auto colorRows = std::vector<ColorFieldRow>{
-		{ u"bg"_q, rpl::single(u"Фон приложения"_q) },
-		{ u"accent"_q, rpl::single(u"Акцент"_q) },
-		{ u"msgIn"_q, rpl::single(u"Входящие сообщения"_q) },
-		{ u"msgOut"_q, rpl::single(u"Исходящие сообщения"_q) },
-		{ u"text"_q, rpl::single(u"Основной текст"_q) },
-		{ u"textSubtle"_q, rpl::single(u"Дополнительный текст"_q) },
-		{ u"danger"_q, rpl::single(u"Ошибки и опасные действия"_q) },
-		{ u"success"_q, rpl::single(u"Успех и онлайн"_q) },
+		{ u"bg"_q, tr::lng_ghostgram_ui_fon_prilozheniya() },
+		{ u"accent"_q, tr::lng_ghostgram_ui_aktsent() },
+		{ u"msgIn"_q, tr::lng_ghostgram_ui_vkhodyaschie_soobscheniya() },
+		{ u"msgOut"_q, tr::lng_ghostgram_ui_iskhodyaschie_soobscheniya() },
+		{ u"text"_q, tr::lng_ghostgram_ui_osnovnoy_tekst() },
+		{ u"textSubtle"_q, tr::lng_ghostgram_ui_dopolnitelnyy_tekst() },
+		{ u"danger"_q, tr::lng_ghostgram_ui_oshibki_i_opasnye_deystviya() },
+		{ u"success"_q, tr::lng_ghostgram_ui_uspekh_i_onlayn() },
 	};
 	for (auto &row : colorRows) {
 		const auto field = row.field;
@@ -839,7 +839,7 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 		});
 	}
 
-	builder.addSubsectionTitle(rpl::single(u"Читаемость"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_chitaemost());
 
 	AddSettingToggle(
 		builder,
@@ -858,18 +858,18 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 				spec.text);
 			const auto value = QString::number(ratio, 'f', 1);
 			return (ratio >= 4.5)
-				? u"Контраст текста и фона: %1 — норма"_q.arg(value)
-				: u"Контраст текста и фона: %1 — слишком низкий, текст может быть плохо читаем"_q.arg(value);
+				? tr::lng_ghostgram_ui_kontrast_teksta_i_fona_1_norma(tr::now).arg(value)
+				: tr::lng_ghostgram_ui_kontrast_teksta_i_fona_1_slishko(tr::now).arg(value);
 		}));
 
 	builder.addDivider();
 	builder.addSkip();
 
-	builder.addSubsectionTitle(rpl::single(u"Обмен темой"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_obmen_temoy());
 
 	builder.addButton({
 		.id = u"theme/export"_q,
-		.title = rpl::single(u"Экспорт темы в JSON"_q),
+		.title = tr::lng_ghostgram_ui_eksport_temy_v_json(),
 		.st = &st::settingsButtonNoIcon,
 		.onClick = [=] {
 			const auto path = QStandardPaths::writableLocation(
@@ -880,10 +880,10 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 				file.write(Theme::SerializeSpec(CurrentSpec()));
 				file.close();
 				controller->show(Ui::MakeInformBox(
-					u"Тема экспортирована в:\n"_q + path));
+					tr::lng_ghostgram_ui_theme_exported_to(tr::now) + path));
 			} else {
 				controller->show(Ui::MakeInformBox(
-					u"Не удалось записать файл темы."_q));
+					tr::lng_ghostgram_ui_ne_udalos_zapisat_fayl_temy(tr::now)));
 			}
 		},
 		.keywords = { u"export"_q, u"theme"_q },
@@ -891,7 +891,7 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 
 	builder.addButton({
 		.id = u"theme/import"_q,
-		.title = rpl::single(u"Импорт темы из JSON"_q),
+		.title = tr::lng_ghostgram_ui_import_temy_iz_json(),
 		.st = &st::settingsButtonNoIcon,
 		.onClick = [=] {
 			const auto path = QStandardPaths::writableLocation(
@@ -900,34 +900,34 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 			auto file = QFile(path);
 			if (!file.open(QIODevice::ReadOnly)) {
 				controller->show(Ui::MakeInformBox(
-					u"Файл не найден по пути:\n"_q + path));
+					tr::lng_ghostgram_ui_file_not_found_at(tr::now) + path));
 				return;
 			}
 			const auto data = file.readAll();
 			file.close();
 			if (!Theme::ParseSpec(data)) {
 				controller->show(Ui::MakeInformBox(
-					u"Ошибка формата JSON в файле темы."_q));
+					tr::lng_ghostgram_ui_oshibka_formata_json_v_fayle_tem(tr::now)));
 				return;
 			}
 			GhostGram::Settings::SetCustomTheme(data);
 			controller->show(Ui::MakeInformBox(
-				u"Тема успешно импортирована."_q));
+				tr::lng_ghostgram_ui_tema_uspeshno_importirovana(tr::now)));
 		},
 		.keywords = { u"import"_q, u"theme"_q },
 	});
 
-	builder.addSubsectionTitle(rpl::single(u"Сохранённые палитры"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_sokhranennye_palitry());
 
 	builder.addButton({
 		.id = u"theme/save_current"_q,
-		.title = rpl::single(u"Сохранить текущую тему"_q),
+		.title = tr::lng_ghostgram_ui_sokhranit_tekuschuyu_temu(),
 		.st = &st::settingsButtonNoIcon,
 		.onClick = [=] {
 			if (!GhostGram::Settings::AddSavedTheme(
 					Theme::SerializeSpec(CurrentSpec()))) {
 				controller->show(Ui::MakeInformBox(
-					u"Нет свободных слотов для палитр. Удалите одну из сохранённых."_q));
+					tr::lng_ghostgram_ui_net_svobodnykh_slotov_dlya_palit(tr::now)));
 			}
 		},
 		.keywords = { u"save"_q, u"theme"_q },
@@ -938,13 +938,13 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 		const auto index = i;
 		builder.addButton({
 			.id = u"theme/slot_"_q + QString::number(index),
-			.title = rpl::single(u"Палитра %1"_q.arg(index + 1)),
+			.title = rpl::single(tr::lng_ghostgram_ui_palitra_1(tr::now).arg(index + 1)),
 			.st = &st::settingsButtonNoIcon,
 			.label = GhostGram::Settings::SavedThemesValue()
 				| rpl::map([=](const QByteArray &json) {
 					return SavedSlotExists(json, index)
-						? u"заполнена"_q
-						: u"пусто"_q;
+						? tr::lng_ghostgram_ui_zapolnena(tr::now)
+						: tr::lng_ghostgram_ui_pusto(tr::now);
 				}),
 			.onClick = [=] {
 				const auto json = GhostGram::Settings::SavedThemesJson();
@@ -952,13 +952,13 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 					return;
 				}
 				controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-					box->setTitle(u"Сохранённая палитра"_q);
-					box->addButton(rpl::single(u"Применить"_q), [=] {
+					box->setTitle(tr::lng_ghostgram_ui_sokhranennaya_palitra(tr::now));
+					box->addButton(tr::lng_ghostgram_ui_primenit(), [=] {
 						GhostGram::Settings::SetCustomTheme(
 							SavedSlotAt(json, index));
 						box->closeBox();
 					});
-					box->addButton(rpl::single(u"Удалить"_q), [=] {
+					box->addButton(tr::lng_ghostgram_ui_udalit(), [=] {
 						GhostGram::Settings::RemoveSavedTheme(index);
 						box->closeBox();
 					});
@@ -973,16 +973,16 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 
 	builder.addButton({
 		.id = u"theme/clear_saved"_q,
-		.title = rpl::single(u"Удалить все сохранённые палитры"_q),
+		.title = tr::lng_ghostgram_ui_udalit_vse_sokhranennye_palitry(),
 		.st = &st::settingsButtonNoIcon,
 		.onClick = [=] {
 			controller->show(Ui::MakeConfirmBox({
-				.text = u"Удалить все сохранённые палитры тем GhostGram?"_q,
+				.text = tr::lng_ghostgram_ui_udalit_vse_sokhranennye_palitry_(tr::now),
 				.confirmed = [=](Fn<void()> close) {
 					GhostGram::Settings::ClearSavedThemes();
 					close();
 				},
-				.confirmText = u"Удалить"_q,
+				.confirmText = tr::lng_ghostgram_ui_udalit(tr::now),
 			}));
 		},
 		.keywords = { u"clear"_q, u"saved"_q },
@@ -993,7 +993,7 @@ void BuildMessagesCategory(SectionBuilder &builder) {
 	const auto controller = builder.controller();
 	builder.addDividerText(tr::lng_settings_ghostgram_messages_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Локальная история и Anti-recall"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_lokalnaya_istoriya_i_anti_recall());
 
 	AddSettingToggle(
 		builder,
@@ -1022,12 +1022,12 @@ void BuildMessagesCategory(SectionBuilder &builder) {
 		{ u"edit"_q, u"history"_q });
 	builder.addDividerText(tr::lng_ghostgram_edit_history_about());
 
-	builder.addSubsectionTitle(rpl::single(u"Срок хранения локальной истории"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_srok_khraneniya_lokalnoy_istorii());
 	const auto retentionOptions = { 7, 30, 90, 0 };
 	for (const auto days : retentionOptions) {
 		const auto title = (days == 0)
-			? u"Без ограничений"_q
-			: (QString::number(days) + u" дней"_q);
+			? tr::lng_ghostgram_ui_bez_ogranicheniy(tr::now)
+			: (QString::number(days) + tr::lng_ghostgram_ui_dney(tr::now));
 
 		builder.addButton({
 			.id = u"messages/retention_"_q + QString::number(days),
@@ -1035,7 +1035,7 @@ void BuildMessagesCategory(SectionBuilder &builder) {
 			.st = &st::settingsButtonNoIcon,
 			.label = GhostGram::Settings::HistoryRetentionDaysValue()
 				| rpl::map([=](int cur) {
-					return (cur == days) ? u"(Активно)"_q : QString();
+					return (cur == days) ? tr::lng_ghostgram_ui_aktivno(tr::now) : QString();
 				}),
 			.onClick = [=] {
 				GhostGram::Settings::SetHistoryRetentionDays(days);
@@ -1044,29 +1044,29 @@ void BuildMessagesCategory(SectionBuilder &builder) {
 		});
 	}
 
-	builder.addSubsectionTitle(rpl::single(u"База сохранённых сообщений"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_baza_sokhranennykh_soobscheniy());
 
 	builder.addButton({
 		.id = u"messages/stats"_q,
-		.title = rpl::single(u"Статистика локальной базы сообщений"_q),
+		.title = tr::lng_ghostgram_ui_statistika_lokalnoy_bazy_soobsch(),
 		.st = &st::settingsButtonNoIcon,
 		.onClick = [=] {
 			const auto deleted = GhostGram::History::TotalDeletedCount();
 			const auto edited = GhostGram::History::TotalEditedCount();
 			controller->show(Ui::MakeInformBox(
-				u"Статистика Anti-recall GhostGram:\n\n"
-				u"• Сохранено удалённых сообщений: "_q
+				tr::lng_ghostgram_ui_stats_header(tr::now)
+				+ tr::lng_ghostgram_ui_stats_deleted(tr::now)
 				+ QString::number(deleted)
-				+ u"\n• Сохранено отредактированных версий: "_q
+				+ tr::lng_ghostgram_ui_stats_edited(tr::now)
 				+ QString::number(edited)
-				+ u"\n\nФайл локальной базы: ghostgram_history.json"_q));
+				+ tr::lng_ghostgram_ui_stats_file(tr::now)));
 		},
 		.keywords = { u"stats"_q, u"deleted"_q, u"history"_q },
 	});
 
 	builder.addButton({
 		.id = u"messages/view_saved"_q,
-		.title = rpl::single(u"Просмотр сохранённой истории"_q),
+		.title = tr::lng_ghostgram_ui_prosmotr_sokhranennoy_istorii(),
 		.st = &st::settingsButtonNoIcon,
 		.onClick = [=] {
 			ShowSavedMessagesBox(controller);
@@ -1076,18 +1076,18 @@ void BuildMessagesCategory(SectionBuilder &builder) {
 
 	builder.addButton({
 		.id = u"messages/clear"_q,
-		.title = rpl::single(u"Очистить локальную историю сообщений"_q),
+		.title = tr::lng_ghostgram_ui_ochistit_lokalnuyu_istoriyu_soob(),
 		.st = &st::settingsButtonNoIcon,
 		.onClick = [=] {
 			controller->show(Ui::MakeConfirmBox({
-				.text = u"Удалить всю сохранённую локальную историю Anti-recall? Это действие необратимо."_q,
+				.text = tr::lng_ghostgram_ui_udalit_vsyu_sokhranennuyu_lokaln(tr::now),
 				.confirmed = [=](Fn<void()> close) {
 					GhostGram::History::ClearHistory();
 					close();
 					controller->show(Ui::MakeInformBox(
-						u"Локальная история сообщений успешно очищена."_q));
+						tr::lng_ghostgram_ui_lokalnaya_istoriya_soobscheniy_u(tr::now)));
 				},
-				.confirmText = u"Очистить"_q,
+				.confirmText = tr::lng_ghostgram_ui_ochistit(tr::now),
 			}));
 		},
 		.keywords = { u"clear"_q, u"delete"_q, u"history"_q },
@@ -1098,7 +1098,7 @@ void BuildPrivacyCategory(SectionBuilder &builder) {
 	const auto controller = builder.controller();
 	builder.addDividerText(tr::lng_settings_ghostgram_privacy_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Приватность при общении"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_privatnost_pri_obschenii());
 
 	AddSettingToggle(
 		builder,
@@ -1126,7 +1126,7 @@ void BuildPrivacyCategory(SectionBuilder &builder) {
 void BuildMediaCategory(SectionBuilder &builder) {
 	builder.addDividerText(tr::lng_settings_ghostgram_media_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Сохранение медиафайлов"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_sokhranenie_mediafaylov());
 
 	AddSettingToggle(
 		builder,
@@ -1142,7 +1142,7 @@ void BuildNotificationsCategory(SectionBuilder &builder) {
 	const auto controller = builder.controller();
 	builder.addDividerText(tr::lng_settings_ghostgram_notifications_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Системные уведомления"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_sistemnye_uvedomleniya());
 
 	builder.addDivider();
 	builder.addSkip();
@@ -1161,7 +1161,7 @@ void BuildNotificationsCategory(SectionBuilder &builder) {
 void BuildStreamerCategory(SectionBuilder &builder) {
 	builder.addDividerText(tr::lng_settings_ghostgram_streamer_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Скрытие информации"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_skrytie_informatsii());
 
 	AddSettingToggle(
 		builder,
@@ -1213,7 +1213,7 @@ void BuildToolsCategory(SectionBuilder &builder) {
 	const auto controller = builder.controller();
 	builder.addDividerText(tr::lng_settings_ghostgram_tools_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Локальные расширения"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_lokalnye_rasshireniya());
 
 	AddSettingToggle(
 		builder,
@@ -1226,7 +1226,7 @@ void BuildToolsCategory(SectionBuilder &builder) {
 
 	builder.addButton({
 		.id = u"tools/bookmarks_stats"_q,
-		.title = rpl::single(u"Просмотр закладок GhostGram"_q),
+		.title = tr::lng_ghostgram_ui_prosmotr_zakladok_ghostgram(),
 		.st = &st::settingsButtonNoIcon,
 		.onClick = [=] {
 			ShowBookmarksBox(controller);
@@ -1248,11 +1248,11 @@ void BuildBackupCategory(SectionBuilder &builder) {
 	const auto controller = builder.controller();
 	builder.addDividerText(tr::lng_settings_ghostgram_backup_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Управление конфигурацией"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_upravlenie_konfiguratsiey());
 
 	builder.addButton({
 		.id = u"backup/export"_q,
-		.title = rpl::single(u"Экспорт настроек GhostGram"_q),
+		.title = tr::lng_ghostgram_ui_eksport_nastroek_ghostgram(),
 		.icon = { &st::menuIconExport },
 		.onClick = [=] {
 			const auto path = QStandardPaths::writableLocation(
@@ -1263,10 +1263,10 @@ void BuildBackupCategory(SectionBuilder &builder) {
 				file.write(GhostGram::Settings::ExportSettingsJson());
 				file.close();
 				controller->show(Ui::MakeInformBox(
-					u"Настройки успешно экспортированы в:\n"_q + path));
+					tr::lng_ghostgram_ui_nastroyki_uspeshno_eksportirovan(tr::now) + path));
 			} else {
 				controller->show(Ui::MakeInformBox(
-					u"Не удалось записать файл настроек."_q));
+					tr::lng_ghostgram_ui_ne_udalos_zapisat_fayl_nastroek(tr::now)));
 			}
 		},
 		.keywords = { u"export"_q, u"backup"_q },
@@ -1274,7 +1274,7 @@ void BuildBackupCategory(SectionBuilder &builder) {
 
 	builder.addButton({
 		.id = u"backup/import"_q,
-		.title = rpl::single(u"Импорт настроек GhostGram"_q),
+		.title = tr::lng_ghostgram_ui_import_nastroek_ghostgram(),
 		.icon = { &st::menuIconRestore },
 		.onClick = [=] {
 			const auto path = QStandardPaths::writableLocation(
@@ -1287,14 +1287,14 @@ void BuildBackupCategory(SectionBuilder &builder) {
 				file.close();
 				if (ok) {
 					controller->show(Ui::MakeInformBox(
-						u"Настройки GhostGram успешно импортированы."_q));
+						tr::lng_ghostgram_ui_nastroyki_ghostgram_uspeshno_imp(tr::now)));
 				} else {
 					controller->show(Ui::MakeInformBox(
-						u"Ошибка формата JSON в файле настроек."_q));
+						tr::lng_ghostgram_ui_oshibka_formata_json_v_fayle_nas(tr::now)));
 				}
 			} else {
 				controller->show(Ui::MakeInformBox(
-					u"Файл не найден по пути:\n"_q + path));
+					tr::lng_ghostgram_ui_file_not_found_at(tr::now) + path));
 			}
 		},
 		.keywords = { u"import"_q, u"restore"_q },
@@ -1302,26 +1302,25 @@ void BuildBackupCategory(SectionBuilder &builder) {
 
 	builder.addButton({
 		.id = u"backup/reset"_q,
-		.title = rpl::single(u"Сбросить настройки GhostGram по умолчанию"_q),
+		.title = tr::lng_ghostgram_ui_sbrosit_nastroyki_ghostgram_po_u(),
 		.icon = { &st::menuIconClear },
 		.onClick = [=] {
 			GhostGram::Settings::ResetToDefaults();
 			controller->show(Ui::MakeInformBox(
-				u"Настройки GhostGram сброшены на начальные."_q));
+				tr::lng_ghostgram_ui_nastroyki_ghostgram_sbrosheny_na(tr::now)));
 		},
 		.keywords = { u"reset"_q, u"defaults"_q },
 	});
 
 	builder.addDivider();
 	builder.addSkip();
-	builder.addDividerText(rpl::single(
-		u"Каталог данных клиента: %APPDATA%\\GhostGram Desktop"_q));
+	builder.addDividerText(tr::lng_ghostgram_ui_data_folder());
 }
 
 void BuildAdvancedCategory(SectionBuilder &builder) {
 	builder.addDividerText(tr::lng_settings_ghostgram_advanced_desc());
 
-	builder.addSubsectionTitle(rpl::single(u"Сеть и отладка"_q));
+	builder.addSubsectionTitle(tr::lng_ghostgram_ui_set_i_otladka());
 
 	AddSettingToggle(
 		builder,
@@ -1346,14 +1345,7 @@ void BuildAboutCategory(SectionBuilder &builder) {
 	builder.addDividerText(tr::lng_settings_ghostgram_about_page_desc());
 
 	builder.addSubsectionTitle(rpl::single(u"GhostGram Desktop"_q));
-	builder.addDividerText(rpl::single(
-		u"Версия: 7.3.1-gg (Windows x64)\n"
-		u"Ветка: ghostgram\n"
-		u"Форк: https://github.com/egormyxa21-gif/tdesktop\n"
-		u"Базовая основа: Telegram Desktop 7.3.1\n"
-		u"Лицензия: GNU GPLv3 с исключением OpenSSL\n\n"
-		u"GhostGram является модифицированным клиентом для опытных пользователей. "
-		u"Все настройки и данные хранятся изолированно в профиле GhostGram Desktop."_q));
+	builder.addDividerText(tr::lng_ghostgram_ui_about_info(tr::now));
 }
 
 // Meta definitions for all 14 categories
