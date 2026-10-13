@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QStandardPaths>
+#include <atomic>
 #include <mutex>
 #include <deque>
 
@@ -24,6 +25,8 @@ namespace GhostGram::History {
 namespace {
 
 constexpr auto kMaxStoredItems = 50000;
+
+std::atomic<int> g_bulkDestroyDepth = 0;
 
 [[nodiscard]] int64 ToInt64(const QJsonValue &value) {
 	if (value.isDouble()) {
@@ -53,6 +56,8 @@ State &GetState() {
 	static State state;
 	return state;
 }
+
+bool PruneExpired(State &state);
 
 QString StoragePath() {
 	const auto base = QStandardPaths::writableLocation(
@@ -127,6 +132,10 @@ void LoadIfNeeded(State &state) {
 	for (auto it = notesObj.begin(); it != notesObj.end(); ++it) {
 		state.chatNotes.emplace(PeerId(it.key().toLongLong()), it.value().toString());
 	}
+
+	if (PruneExpired(state)) {
+		SaveToDisk(state);
+	}
 }
 
 void SaveToDisk(const State &state) {
@@ -183,6 +192,27 @@ void SaveToDisk(const State &state) {
 	}
 }
 
+bool PruneExpired(State &state) {
+	const auto days = GhostGram::Settings::HistoryRetentionDays();
+	if (days <= 0) {
+		return false;
+	}
+	const auto cutoff = base::unixtime::now() - TimeId(days) * 86400;
+	auto changed = false;
+	while (!state.deletedMessages.empty()
+		&& state.deletedMessages.back().recordedAt < cutoff) {
+		state.deletedIds.remove(state.deletedMessages.back().fullId);
+		state.deletedMessages.pop_back();
+		changed = true;
+	}
+	while (!state.editedMessages.empty()
+		&& state.editedMessages.back().recordedAt < cutoff) {
+		state.editedMessages.pop_back();
+		changed = true;
+	}
+	return changed;
+}
+
 } // namespace
 
 void SaveDeletedMessage(
@@ -191,7 +221,9 @@ void SaveDeletedMessage(
 		const QString &chatTitle,
 		const QString &text,
 		TimeId date) {
-	if (!GhostGram::Settings::AntiRecallEnabled() || text.isEmpty()) {
+	if (!GhostGram::Settings::AntiRecallEnabled()
+		|| text.isEmpty()
+		|| g_bulkDestroyDepth.load(std::memory_order_relaxed) > 0) {
 		return;
 	}
 	auto &state = GetState();
@@ -213,6 +245,8 @@ void SaveDeletedMessage(
 	});
 	state.deletedIds.emplace(fullId);
 
+	PruneExpired(state);
+
 	while (state.deletedMessages.size() > kMaxStoredItems) {
 		state.deletedIds.remove(state.deletedMessages.back().fullId);
 		state.deletedMessages.pop_back();
@@ -228,7 +262,9 @@ void SaveEditedMessage(
 		const QString &previousText,
 		const QString &newText,
 		TimeId date) {
-	if (!GhostGram::Settings::EditHistoryEnabled() || previousText.isEmpty()) {
+	if (!GhostGram::Settings::EditHistoryEnabled()
+		|| previousText.isEmpty()
+		|| g_bulkDestroyDepth.load(std::memory_order_relaxed) > 0) {
 		return;
 	}
 	auto &state = GetState();
@@ -245,6 +281,8 @@ void SaveEditedMessage(
 		.recordedAt = base::unixtime::now(),
 		.isDeleted = false,
 	});
+
+	PruneExpired(state);
 
 	while (state.editedMessages.size() > kMaxStoredItems) {
 		state.editedMessages.pop_back();
@@ -292,10 +330,11 @@ bool HasDeletedVersion(FullMsgId fullId) {
 void ClearHistory() {
 	auto &state = GetState();
 	std::lock_guard<std::mutex> lock(state.mutex);
+	LoadIfNeeded(state);
 	state.deletedMessages.clear();
 	state.editedMessages.clear();
 	state.deletedIds.clear();
-	QFile::remove(StoragePath());
+	SaveToDisk(state);
 }
 
 int TotalDeletedCount() {
@@ -371,6 +410,14 @@ QString GetChatNote(PeerId peerId) {
 
 	const auto it = state.chatNotes.find(peerId);
 	return (it != state.chatNotes.end()) ? it->second : QString();
+}
+
+BulkDestroyGuard::BulkDestroyGuard() {
+	g_bulkDestroyDepth.fetch_add(1, std::memory_order_relaxed);
+}
+
+BulkDestroyGuard::~BulkDestroyGuard() {
+	g_bulkDestroyDepth.fetch_sub(1, std::memory_order_relaxed);
 }
 
 } // namespace GhostGram::History

@@ -79,6 +79,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_checkout_process.h"
 #include "core/crash_reports.h"
 #include "core/application.h"
+#include "ghostgram/ghostgram_history.h"
 #include "base/options.h"
 #include "base/unixtime.h"
 #include "base/qt/qt_common_adapters.h"
@@ -4458,6 +4459,7 @@ void History::clear(ClearType type, bool markEmpty) {
 	if (type == ClearType::Unload) {
 		_loadedAtTop = _loadedAtBottom = markEmpty;
 	} else {
+		const auto ghostGuard = GhostGram::History::BulkDestroyGuard();
 		// Leave the 'sending' messages in local messages.
 		auto local = std::vector<not_null<HistoryItem*>>();
 		local.reserve(_clientSideMessages.size());
@@ -4516,6 +4518,7 @@ void History::clear(ClearType type, bool markEmpty) {
 }
 
 void History::clearUpTill(MsgId availableMinId) {
+	const auto ghostGuard = GhostGram::History::BulkDestroyGuard();
 	auto remove = std::vector<not_null<HistoryItem*>>();
 	remove.reserve(_items.size());
 	for (const auto &item : _items) {

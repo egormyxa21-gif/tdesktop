@@ -43,6 +43,19 @@ void SaveEditedMessage(
 	const QString &newText,
 	TimeId date);
 
+// WHY: wiping a whole history destroys thousands of items at once and
+// the anti-recall store would swallow them all up to the storage cap,
+// evicting the actually recalled messages; the guard skips such bursts.
+class BulkDestroyGuard {
+public:
+	BulkDestroyGuard();
+	~BulkDestroyGuard();
+
+	BulkDestroyGuard(const BulkDestroyGuard &) = delete;
+	BulkDestroyGuard &operator=(const BulkDestroyGuard &) = delete;
+
+};
+
 [[nodiscard]] std::vector<SavedMessage> GetDeletedMessages(PeerId peerId = 0);
 [[nodiscard]] std::vector<SavedMessage> GetEditedMessages(FullMsgId fullId = {});
 [[nodiscard]] bool HasDeletedVersion(FullMsgId fullId);

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "ghostgram/ghostgram_settings.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "lang/lang_keys.h"
@@ -327,6 +328,8 @@ bool SponsoredMessages::isTopBarFor(not_null<History*> history) const {
 void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 	if (!canHaveFor(history)) {
 		return;
+	} else if (GhostGram::Settings::HideSponsored()) {
+		return;
 	}
 	auto &request = _requests[history];
 	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
@@ -366,6 +369,9 @@ void SponsoredMessages::requestForVideo(
 	Expects(done != nullptr);
 
 	if (!canHaveFor(item)) {
+		done({});
+		return;
+	} else if (GhostGram::Settings::HideSponsored()) {
 		done({});
 		return;
 	}

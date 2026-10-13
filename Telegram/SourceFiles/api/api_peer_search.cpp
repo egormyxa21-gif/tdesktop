@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "data/data_session.h"
 #include "dialogs/ui/chat_search_in.h" // IsHashOrCashtagSearchQuery
+#include "ghostgram/ghostgram_settings.h"
 #include "main/main_session.h"
 
 namespace Api {
@@ -56,7 +57,11 @@ void PeerSearch::request(
 	if (_query.size() < kMinSponsoredQueryLength) {
 		cache.sponsoredReady = true;
 	} else if (_type == Type::WithSponsored) {
-		requestSponsored();
+		if (GhostGram::Settings::HideSponsored()) {
+			cache.sponsoredReady = true;
+		} else {
+			requestSponsored();
+		}
 	}
 	requestPeers();
 }
