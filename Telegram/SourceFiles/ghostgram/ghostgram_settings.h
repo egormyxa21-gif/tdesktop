@@ -20,6 +20,17 @@ enum class ThemePreset : int {
 	Midnight = 3,
 	Violet = 4,
 	Arctic = 5,
+	Emerald = 6,
+	Crimson = 7,
+	Sunset = 8,
+	Graphite = 9,
+	Ocean = 10,
+	Nord = 11,
+	Cyberpunk = 12,
+	Amoled = 13,
+	Solarized = 14,
+	Daylight = 15,
+	Lavender = 16,
 };
 
 // Ghost Mode
@@ -90,6 +101,15 @@ void SetHistoryRetentionDays(int value);
 [[nodiscard]] ThemePreset CurrentThemePreset();
 void SetThemePreset(ThemePreset value);
 [[nodiscard]] rpl::producer<ThemePreset> ThemePresetValue();
+
+[[nodiscard]] QByteArray CurrentCustomTheme();
+void SetCustomTheme(const QByteArray &value);
+[[nodiscard]] rpl::producer<QByteArray> CustomThemeValue();
+
+// WHY: the first GetState() happens while Core::Settings is still empty
+// (Main::Domain is built before Local::start), so prefs must be re-read
+// once they are actually loaded.
+void Reload();
 
 [[nodiscard]] bool CompactChatList();
 void SetCompactChatList(bool value);

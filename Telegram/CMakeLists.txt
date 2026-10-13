@@ -1921,6 +1921,8 @@ PRIVATE
     ghostgram/ghostgram_settings.h
     ghostgram/ghostgram_history.cpp
     ghostgram/ghostgram_history.h
+    ghostgram/ghostgram_theme.cpp
+    ghostgram/ghostgram_theme.h
     settings/sections/settings_ghostgram.cpp
     settings/sections/settings_ghostgram.h
     settings/sections/settings_global_ttl.cpp

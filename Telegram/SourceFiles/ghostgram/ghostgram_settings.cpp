@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "ghostgram/ghostgram_theme.h"
 #include "window/themes/window_theme.h"
 
 #include <QtCore/QJsonDocument>
@@ -36,6 +37,7 @@ constexpr auto kAntiRecallShowMarkKey = "gg_anti_recall_show_mark";
 constexpr auto kEditHistoryEnabledKey = "gg_edit_history_enabled";
 constexpr auto kHistoryRetentionDaysKey = "gg_history_retention_days";
 constexpr auto kThemePresetKey = "gg_theme_preset";
+constexpr auto kThemeCustomKey = "gg_theme_custom";
 constexpr auto kCompactChatListKey = "gg_compact_chat_list";
 constexpr auto kShowPeerIdKey = "gg_show_peer_id";
 constexpr auto kHideSponsoredKey = "gg_hide_sponsored";
@@ -62,6 +64,7 @@ struct State {
 	rpl::variable<bool> editHistoryEnabled = false;
 	rpl::variable<int> historyRetentionDays = 30;
 	rpl::variable<ThemePreset> themePreset = ThemePreset::Default;
+	rpl::variable<QByteArray> customTheme;
 	rpl::variable<bool> compactChatList = false;
 	rpl::variable<bool> showPeerId = false;
 	rpl::variable<bool> hideSponsored = true;
@@ -73,7 +76,8 @@ struct State {
 	bool initialized = false;
 };
 
-void ApplyThemePreset(ThemePreset preset);
+void ApplyTheme(const std::optional<Theme::Spec> &spec);
+void ApplyActiveTheme(const State &state);
 
 State &GetState() {
 	static State state;
@@ -114,12 +118,10 @@ State &GetState() {
 		const auto themeRaw = core.readPref<QByteArray>(kThemePresetKey);
 		if (!themeRaw.isEmpty()) {
 			state.themePreset = static_cast<ThemePreset>(themeRaw.toInt());
-			if (state.themePreset.current() != ThemePreset::Default) {
-				ApplyThemePreset(state.themePreset.current());
-			}
 		} else {
 			state.themePreset = ThemePreset::Default;
 		}
+		state.customTheme = core.readPref<QByteArray>(kThemeCustomKey);
 
 		state.compactChatList = core.readPref<bool>(kCompactChatListKey, false);
 		state.showPeerId = core.readPref<bool>(kShowPeerIdKey, false);
@@ -129,6 +131,11 @@ State &GetState() {
 		state.preserveDeletedMedia = core.readPref<bool>(kPreserveDeletedMediaKey, false);
 		state.bookmarksEnabled = core.readPref<bool>(kBookmarksEnabledKey, true);
 		state.chatNotesEnabled = core.readPref<bool>(kChatNotesEnabledKey, true);
+
+		if (state.themePreset.current() != ThemePreset::Default
+			|| !state.customTheme.current().isEmpty()) {
+			ApplyActiveTheme(state);
+		}
 	}
 	return state;
 }
@@ -140,6 +147,11 @@ void SaveBool(std::string_view key, bool value) {
 
 void SaveInt(std::string_view key, int value) {
 	Core::App().settings().writePref<QByteArray>(key, QByteArray::number(value));
+	Core::App().saveSettingsDelayed();
+}
+
+void SaveBytes(std::string_view key, const QByteArray &value) {
+	Core::App().settings().writePref<QByteArray>(key, value);
 	Core::App().saveSettingsDelayed();
 }
 
@@ -392,108 +404,23 @@ ThemePreset CurrentThemePreset() {
 
 namespace {
 
-void ApplyThemePreset(ThemePreset preset) {
-	if (preset == ThemePreset::Default) {
+void ApplyTheme(const std::optional<Theme::Spec> &spec) {
+	if (!spec) {
 		Window::Theme::ResetToSomeDefault();
 		return;
 	}
-	QByteArray palette;
-	switch (preset) {
-	case ThemePreset::Obsidian:
-		palette =
-			"windowBg: #0e0e11;\n"
-			"windowBgOver: #16161c;\n"
-			"windowBgRipple: #22222a;\n"
-			"windowBgActive: #252530;\n"
-			"topBarBg: #0e0e11;\n"
-			"dialogsBg: #0e0e11;\n"
-			"dialogsBgOver: #16161c;\n"
-			"dialogsBgActive: #22222a;\n"
-			"historyComposeAreaBg: #0e0e11;\n"
-			"msgInBg: #181820;\n"
-			"msgInBgSelected: #262633;\n"
-			"msgOutBg: #222530;\n"
-			"msgOutBgSelected: #303545;\n"
-			"sideBarBg: #0a0a0d;\n"
-			"menuBg: #141419;\n";
-		break;
-	case ThemePreset::Phantom:
-		palette =
-			"windowBg: #13111c;\n"
-			"windowBgOver: #1c1829;\n"
-			"windowBgRipple: #272138;\n"
-			"windowBgActive: #5a3e85;\n"
-			"topBarBg: #13111c;\n"
-			"dialogsBg: #13111c;\n"
-			"dialogsBgOver: #1c1829;\n"
-			"dialogsBgActive: #272138;\n"
-			"historyComposeAreaBg: #13111c;\n"
-			"msgInBg: #1c1828;\n"
-			"msgInBgSelected: #2b243e;\n"
-			"msgOutBg: #382654;\n"
-			"msgOutBgSelected: #4a3370;\n"
-			"sideBarBg: #0e0d14;\n"
-			"menuBg: #181524;\n";
-		break;
-	case ThemePreset::Midnight:
-		palette =
-			"windowBg: #080d14;\n"
-			"windowBgOver: #0f1824;\n"
-			"windowBgRipple: #162233;\n"
-			"windowBgActive: #1c3654;\n"
-			"topBarBg: #080d14;\n"
-			"dialogsBg: #080d14;\n"
-			"dialogsBgOver: #0f1824;\n"
-			"dialogsBgActive: #162233;\n"
-			"historyComposeAreaBg: #080d14;\n"
-			"msgInBg: #0e1724;\n"
-			"msgInBgSelected: #17253b;\n"
-			"msgOutBg: #1a3352;\n"
-			"msgOutBgSelected: #254975;\n"
-			"sideBarBg: #06090e;\n"
-			"menuBg: #0c131c;\n";
-		break;
-	case ThemePreset::Violet:
-		palette =
-			"windowBg: #150d1f;\n"
-			"windowBgOver: #201330;\n"
-			"windowBgRipple: #2d1b45;\n"
-			"windowBgActive: #7b2cbf;\n"
-			"topBarBg: #150d1f;\n"
-			"dialogsBg: #150d1f;\n"
-			"dialogsBgOver: #201330;\n"
-			"dialogsBgActive: #2d1b45;\n"
-			"historyComposeAreaBg: #150d1f;\n"
-			"msgInBg: #221433;\n"
-			"msgInBgSelected: #331e4d;\n"
-			"msgOutBg: #4d1975;\n"
-			"msgOutBgSelected: #68229e;\n"
-			"sideBarBg: #0f0917;\n"
-			"menuBg: #1a1026;\n";
-		break;
-	case ThemePreset::Arctic:
-		palette =
-			"windowBg: #0a1317;\n"
-			"windowBgOver: #101e24;\n"
-			"windowBgRipple: #172a33;\n"
-			"windowBgActive: #1d5563;\n"
-			"topBarBg: #0a1317;\n"
-			"dialogsBg: #0a1317;\n"
-			"dialogsBgOver: #101e24;\n"
-			"dialogsBgActive: #172a33;\n"
-			"historyComposeAreaBg: #0a1317;\n"
-			"msgInBg: #0f1e24;\n"
-			"msgInBgSelected: #182e38;\n"
-			"msgOutBg: #18424d;\n"
-			"msgOutBgSelected: #235c6b;\n"
-			"sideBarBg: #070e12;\n"
-			"menuBg: #0e1a20;\n";
-		break;
-	default:
-		return;
-	}
-	if (Window::Theme::ApplyEditedPalette(palette)) {
+	const auto palette = Theme::BuildPalette(
+		Theme::EnsureReadableSpec(*spec));
+	if (!palette.isEmpty() && Window::Theme::ApplyEditedPalette(palette)) {
 		Window::Theme::KeepApplied();
+	}
+}
+
+void ApplyActiveTheme(const State &state) {
+	if (const auto custom = Theme::ParseSpec(state.customTheme.current())) {
+		ApplyTheme(custom);
+	} else if (const auto preset = Theme::PresetSpec(state.themePreset.current())) {
+		ApplyTheme(preset);
 	}
 }
 
@@ -504,12 +431,51 @@ void SetThemePreset(ThemePreset value) {
 	if (state.themePreset.current() != value) {
 		state.themePreset = value;
 		SaveInt(kThemePresetKey, static_cast<int>(value));
-		ApplyThemePreset(value);
+	}
+	if (!state.customTheme.current().isEmpty()) {
+		state.customTheme = QByteArray();
+		SaveBytes(kThemeCustomKey, QByteArray());
+	}
+	if (value == ThemePreset::Default) {
+		ApplyTheme(std::nullopt);
+	} else {
+		ApplyActiveTheme(state);
 	}
 }
 
 rpl::producer<ThemePreset> ThemePresetValue() {
 	return GetState().themePreset.value();
+}
+
+QByteArray CurrentCustomTheme() {
+	return GetState().customTheme.current();
+}
+
+void SetCustomTheme(const QByteArray &value) {
+	const auto spec = value.isEmpty()
+		? std::optional<Theme::Spec>()
+		: Theme::ParseSpec(value);
+	if (!value.isEmpty() && !spec) {
+		return;
+	}
+	auto &state = GetState();
+	const auto cleaned = spec ? Theme::SerializeSpec(*spec) : value;
+	if (state.customTheme.current() == cleaned) {
+		return;
+	}
+	state.customTheme = cleaned;
+	SaveBytes(kThemeCustomKey, cleaned);
+	ApplyActiveTheme(state);
+}
+
+rpl::producer<QByteArray> CustomThemeValue() {
+	return GetState().customTheme.value();
+}
+
+void Reload() {
+	auto &state = GetState();
+	state.initialized = false;
+	GetState();
 }
 
 bool CompactChatList() {
