@@ -424,7 +424,7 @@ void ApplyTheme(
 	const auto prepared = autoContrast
 		? Theme::EnsureReadableSpec(*spec)
 		: *spec;
-	const auto palette = Theme::BuildPalette(prepared);
+	const auto palette = Theme::BuildPalette(prepared, autoContrast);
 	if (!palette.isEmpty() && Window::Theme::ApplyEditedPalette(palette)) {
 		Window::Theme::KeepApplied();
 	}
@@ -797,7 +797,11 @@ bool ImportSettingsJson(const QByteArray &data) {
 		SetHistoryRetentionDays(obj["historyRetentionDays"].toInt(30));
 	}
 	if (obj.contains("themePreset")) {
-		SetThemePreset(static_cast<ThemePreset>(obj["themePreset"].toInt(0)));
+		const auto value = obj["themePreset"].toInt(0);
+		if (value >= static_cast<int>(ThemePreset::Default)
+			&& value <= static_cast<int>(ThemePreset::Lavender)) {
+			SetThemePreset(static_cast<ThemePreset>(value));
+		}
 	}
 	if (obj.contains("compactChatList")) {
 		SetCompactChatList(obj["compactChatList"].toBool());

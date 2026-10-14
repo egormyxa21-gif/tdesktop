@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 
 #include "base/call_delayed.h"
+#include "ghostgram/ghostgram_history.h"
+#include "ghostgram/ghostgram_settings.h"
 #include "menu/menu_check_item.h"
 #include "menu/menu_mark_as_read.h"
 #include "boxes/about_box.h"
@@ -312,6 +314,7 @@ private:
 	void addUngroup();
 	void addToggleFolder();
 	void addToggleUnreadMark();
+	void addChatNote();
 	void addToggleArchive();
 	void addClearHistory();
 	void addDeleteChat();
@@ -737,6 +740,41 @@ void Filler::addToggleUnreadMark() {
 			peer->owner().histories().changeDialogUnreadMark(history, true);
 		}
 	}, (unread ? &st::menuIconMarkRead : &st::menuIconMarkUnread));
+}
+
+void Filler::addChatNote() {
+	if (!_peer || !GhostGram::Settings::ChatNotesEnabled()) {
+		return;
+	}
+	const auto peer = _peer;
+	const auto controller = _controller;
+	_addAction(
+		tr::lng_ghostgram_ui_zametka_k_chatu(tr::now),
+		[=] {
+			const auto current = GhostGram::History::GetChatNote(peer->id);
+			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setTitle(tr::lng_ghostgram_ui_zametka_k_chatu(tr::now));
+				const auto field = box->addRow(
+					object_ptr<Ui::InputField>(
+						box,
+						st::defaultInputField,
+						tr::lng_ghostgram_ui_zametka_oopisanie(),
+						current));
+				box->setFocusCallback([=] {
+					field->setFocusFast();
+				});
+				box->addButton(tr::lng_box_ok(), [=] {
+					GhostGram::History::SaveChatNote(
+						peer->id,
+						field->getLastText().trimmed());
+					box->closeBox();
+				});
+				box->addButton(tr::lng_cancel(), [=] {
+					box->closeBox();
+				});
+			}));
+		},
+		&st::menuIconEdit);
 }
 
 void Filler::addNewWindow(bool addSeparator) {
@@ -1920,6 +1958,7 @@ void Filler::fillContextMenuActions() {
 	}
 	addToggleMuteSubmenu(false);
 	addToggleUnreadMark();
+	addChatNote();
 	addToggleTopicClosed();
 	addToggleFolder();
 	if (const auto user = _peer->asUser()) {
@@ -1938,6 +1977,7 @@ void Filler::fillHistoryActions() {
 	addToggleMuteSubmenu(true);
 	addCreateTopic();
 	addInfo();
+	addChatNote();
 	addViewAsTopics();
 	addManageChat();
 	addStoryArchive();

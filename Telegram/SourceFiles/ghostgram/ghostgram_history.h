@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QString>
 #include <QtCore/QVector>
+#include <utility>
 #include <vector>
 
 namespace GhostGram::History {
@@ -78,5 +79,7 @@ void RemoveAllBookmarks();
 
 void SaveChatNote(PeerId peerId, const QString &note);
 [[nodiscard]] QString GetChatNote(PeerId peerId);
+[[nodiscard]] std::vector<std::pair<PeerId, QString>> GetChatNotes();
+void ClearChatNotes();
 
 } // namespace GhostGram::History

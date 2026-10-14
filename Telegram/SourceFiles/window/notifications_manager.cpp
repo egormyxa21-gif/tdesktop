@@ -1099,7 +1099,7 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 		|| (streamer && (GhostGram::Settings::StreamerHideNames() || GhostGram::Settings::StreamerHideAvatars()));
 	result.hideMessageText = hideEverything
 		|| (view > Core::Settings::NotifyView::ShowPreview)
-		|| streamer;
+		|| (streamer && GhostGram::Settings::StreamerHidePreviews());
 	result.hideMarkAsRead = result.hideMessageText
 		|| (type != Data::ItemNotificationType::Message)
 		|| !item

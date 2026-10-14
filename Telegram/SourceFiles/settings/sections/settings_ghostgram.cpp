@@ -10,7 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ghostgram/ghostgram_settings.h"
 #include "ghostgram/ghostgram_history.h"
 #include "ghostgram/ghostgram_theme.h"
+#include "data/data_peer.h"
+#include "data/data_session.h"
+#include "main/main_session.h"
 #include "settings/settings_common_session.h"
+#include "settings/sections/settings_local_storage.h"
 #include "settings/sections/settings_main.h"
 #include "settings/sections/settings_privacy_security.h"
 #include "settings/sections/settings_notifications.h"
@@ -25,7 +29,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/color_editor.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/fields/input_field.h"
 #include "window/window_session_controller.h"
+#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
@@ -34,8 +40,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QStandardPaths>
+#include <QtCore/QUrl>
+
+#include <QtGui/QDesktopServices>
 
 #include <array>
+#include <utility>
+#include <vector>
 
 namespace Settings {
 namespace {
@@ -155,37 +166,58 @@ void ShowBookmarksBox(not_null<Window::SessionController*> controller) {
 	const auto items = GhostGram::History::GetBookmarks();
 	const auto exportData = GhostGram::History::ExportJson();
 	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-		box->setTitle(tr::lng_ghostgram_ui_zakladki_ghostgram());
+		const auto total = int(items.size());
+		box->setTitle(
+			tr::lng_ghostgram_ui_zakladki_schet(tr::now).arg(total));
 		if (items.empty()) {
 			box->addRow(object_ptr<Ui::FlatLabel>(
 				box,
 				rpl::single(
 					tr::lng_ghostgram_ui_zakladok_poka_net_dobavlyayte_so(tr::now)),
 				st::boxLabel));
-		}
-		auto index = 0;
-		for (const auto &bm : items) {
-			if (index++ == kListedItems) {
-				box->addRow(object_ptr<Ui::FlatLabel>(
-					box,
-					rpl::single(
-						tr::lng_ghostgram_ui_i_esche_1(tr::now)
-						+ QString::number(items.size() - kListedItems)),
-					st::boxLabel));
-				break;
-			}
-			const auto button = Ui::CreateChild<Ui::SettingsButton>(
+		} else {
+			const auto search = box->addRow(object_ptr<Ui::InputField>(
 				box,
-				rpl::single(bm.text),
-				st::settingsButton);
-			button->setClickedCallback([=] {
-				box->closeBox();
-				controller->showPeerHistory(
-					bm.fullId.peer,
-					SectionShow::Way::ClearStack,
-					bm.fullId.msg);
-			});
-			box->addRow(object_ptr<Ui::SettingsButton>(button));
+				st::defaultInputField,
+				tr::lng_ghostgram_ui_poisk_zakladok(),
+				QString()));
+			auto index = 0;
+			auto rows = std::vector<std::pair<Ui::SettingsButton*, QString>>();
+			for (const auto &bm : items) {
+				if (index++ == kListedItems) {
+					box->addRow(object_ptr<Ui::FlatLabel>(
+						box,
+						rpl::single(
+							tr::lng_ghostgram_ui_i_esche_1(tr::now)
+							+ QString::number(items.size() - kListedItems)),
+						st::boxLabel));
+					break;
+				}
+				const auto button = Ui::CreateChild<Ui::SettingsButton>(
+					box,
+					rpl::single(bm.text),
+					st::settingsButton);
+				button->setClickedCallback([=] {
+					box->closeBox();
+					controller->showPeerHistory(
+						bm.fullId.peer,
+						SectionShow::Way::ClearStack,
+						bm.fullId.msg);
+				});
+				box->addRow(object_ptr<Ui::SettingsButton>(button));
+				rows.emplace_back(button, bm.text);
+			}
+			search->changes() | rpl::on_next([=] {
+				const auto query = search->getLastText().trimmed().toLower();
+				for (const auto &[button, text] : rows) {
+					if (!button) {
+						continue;
+					}
+					const auto match = query.isEmpty()
+						|| text.contains(query, Qt::CaseInsensitive);
+					button->setVisible(match);
+				}
+			}, search->lifetime());
 		}
 		if (!items.empty()) {
 			box->addButton(tr::lng_ghostgram_ui_udalit_vse(), [=] {
@@ -291,6 +323,61 @@ void ShowSavedMessagesBox(not_null<Window::SessionController*> controller) {
 			controller->show(Ui::MakeInformBox(
 				tr::lng_ghostgram_ui_file_saved_to(tr::now) + path));
 		});
+		box->addButton(tr::lng_ghostgram_ui_zakryt(), [=] {
+			box->closeBox();
+		});
+	}));
+}
+
+void ShowChatNotesBox(not_null<Window::SessionController*> controller) {
+	const auto notes = GhostGram::History::GetChatNotes();
+	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_ghostgram_ui_zametki_k_chatam());
+		if (notes.empty()) {
+			box->addRow(object_ptr<Ui::FlatLabel>(
+				box,
+				rpl::single(
+					tr::lng_ghostgram_ui_zametok_poka_net(tr::now)),
+				st::boxLabel));
+		}
+		for (const auto &[peerId, note] : notes) {
+			const auto peer = controller->session().data().peerLoaded(peerId);
+			const auto title = peer
+				? peer->name()
+				: QString::number(peerId.value);
+			const auto button = Ui::CreateChild<Ui::SettingsButton>(
+				box,
+				rpl::single(title),
+				st::settingsButton);
+			button->setClickedCallback([=] {
+				if (!controller->session().data().peerLoaded(peerId)) {
+					return;
+				}
+				box->closeBox();
+				controller->showPeerHistory(
+					peerId,
+					SectionShow::Way::ClearStack,
+					MsgId());
+			});
+			box->addRow(object_ptr<Ui::SettingsButton>(button));
+			box->addRow(object_ptr<Ui::FlatLabel>(
+				box,
+				rpl::single(note),
+				st::boxLabel));
+		}
+		if (!notes.empty()) {
+			box->addButton(tr::lng_ghostgram_ui_udalit_vse_zametki(), [=] {
+				controller->show(Ui::MakeConfirmBox({
+					.text = tr::lng_ghostgram_ui_udalit_vse_zametki_vopros(tr::now),
+					.confirmed = [=](Fn<void()> close) {
+						GhostGram::History::ClearChatNotes();
+						box->closeBox();
+						close();
+					},
+					.confirmText = tr::lng_ghostgram_ui_sbrosit(tr::now),
+				}));
+			});
+		}
 		box->addButton(tr::lng_ghostgram_ui_zakryt(), [=] {
 			box->closeBox();
 		});
@@ -554,42 +641,66 @@ private:
 };
 
 void BuildOverviewCategory(SectionBuilder &builder) {
+	const auto controller = builder.controller();
 	builder.addDividerText(tr::lng_settings_ghostgram_overview_desc());
 
 	builder.addSubsectionTitle(tr::lng_ghostgram_ui_bystryy_status_moduley());
 
-	AddSettingToggle(
-		builder,
-		u"overview/ghost_toggle"_q,
-		tr::lng_ghostgram_ghost_read_receipts(),
-		GhostGram::Settings::GhostReadReceiptsValue(),
-		GhostGram::Settings::SetGhostReadReceipts,
-		{ u"ghost"_q, u"stealth"_q });
+	// WHY: the same settings live in their own sections; the overview only
+	// reflects their state and navigates there, so there is a single source
+	// of truth per toggle.
+	builder.addButton({
+		.id = u"overview/ghost_card"_q,
+		.title = tr::lng_settings_ghostgram_ghost(),
+		.st = &st::settingsButtonNoIcon,
+		.label = rpl::combine(
+			GhostGram::Settings::GhostReadReceiptsValue(),
+			GhostGram::Settings::GhostTypingValue(),
+			GhostGram::Settings::GhostStoriesValue())
+		| rpl::map([](bool receipts, bool typing, bool stories) {
+			const auto active = int(receipts) + int(typing) + int(stories);
+			return tr::lng_ghostgram_ui_status_iz3(tr::now).arg(active);
+		}),
+		.onClick = [=] { controller->showSettings(GhostGramGhost::Id()); },
+		.keywords = { u"ghost"_q, u"stealth"_q },
+	});
 
-	AddSettingToggle(
-		builder,
-		u"overview/streamer_toggle"_q,
-		tr::lng_ghostgram_streamer_mode(),
-		GhostGram::Settings::StreamerModeValue(),
-		GhostGram::Settings::SetStreamerMode,
-		{ u"streamer"_q });
+	builder.addButton({
+		.id = u"overview/streamer_card"_q,
+		.title = tr::lng_settings_ghostgram_streamer(),
+		.st = &st::settingsButtonNoIcon,
+		.label = GhostGram::Settings::StreamerModeValue()
+		| rpl::map([](bool on) {
+			return on
+				? tr::lng_ghostgram_ui_vkl(tr::now)
+				: tr::lng_ghostgram_ui_vyk(tr::now);
+		}),
+		.onClick = [=] { controller->showSettings(GhostGramStreamer::Id()); },
+		.keywords = { u"streamer"_q },
+	});
 
-	AddSettingToggle(
-		builder,
-		u"overview/anti_recall_toggle"_q,
-		tr::lng_ghostgram_anti_recall(),
-		GhostGram::Settings::AntiRecallEnabledValue(),
-		GhostGram::Settings::SetAntiRecallEnabled,
-		{ u"anti-recall"_q, u"messages"_q });
+	builder.addButton({
+		.id = u"overview/anti_recall_card"_q,
+		.title = tr::lng_settings_ghostgram_messages(),
+		.st = &st::settingsButtonNoIcon,
+		.label = GhostGram::Settings::AntiRecallEnabledValue()
+		| rpl::map([](bool on) {
+			return on
+				? tr::lng_ghostgram_ui_vkl(tr::now)
+				: tr::lng_ghostgram_ui_vyk(tr::now);
+		}),
+		.onClick = [=] { controller->showSettings(GhostGramMessages::Id()); },
+		.keywords = { u"anti-recall"_q, u"messages"_q },
+	});
 
 	builder.addDivider();
 	builder.addSkip();
 
 	builder.addSectionButton({
-		.title = tr::lng_settings_ghostgram_ghost(),
-		.targetSection = GhostGramGhost::Id(),
-		.icon = { &st::menuIconStealth },
-		.keywords = { u"ghost"_q },
+		.title = tr::lng_settings_ghostgram_general(),
+		.targetSection = GhostGramGeneral::Id(),
+		.icon = { &st::menuIconSettings },
+		.keywords = { u"general"_q },
 	});
 	builder.addSectionButton({
 		.title = tr::lng_settings_ghostgram_accounts(),
@@ -607,16 +718,6 @@ void BuildOverviewCategory(SectionBuilder &builder) {
 
 void BuildGeneralCategory(SectionBuilder &builder) {
 	builder.addDividerText(tr::lng_settings_ghostgram_general_desc());
-
-	builder.addSubsectionTitle(tr::lng_ghostgram_ui_interfeys_dialogov());
-	AddSettingToggle(
-		builder,
-		u"general/compact_chats"_q,
-		tr::lng_ghostgram_compact_chats(),
-		GhostGram::Settings::CompactChatListValue(),
-		GhostGram::Settings::SetCompactChatList,
-		{ u"compact"_q, u"chats"_q });
-	builder.addDividerText(tr::lng_ghostgram_compact_chats_about());
 
 	builder.addSubsectionTitle(tr::lng_ghostgram_ui_filtratsiya_kontenta());
 	AddSettingToggle(
@@ -660,30 +761,10 @@ void BuildGhostCategory(SectionBuilder &builder) {
 		GhostGram::Settings::SetGhostStories,
 		{ u"stories"_q });
 	builder.addDividerText(tr::lng_ghostgram_ghost_stories_about());
-
-	AddSettingToggle(
-		builder,
-		u"ghost/offline"_q,
-		tr::lng_ghostgram_ghost_offline(),
-		GhostGram::Settings::GhostOfflineValue(),
-		GhostGram::Settings::SetGhostOffline,
-		{ u"offline"_q, u"status"_q });
-	builder.addDividerText(tr::lng_ghostgram_ghost_offline_about());
 }
 
 void BuildAccountsCategory(SectionBuilder &builder) {
 	builder.addDividerText(tr::lng_settings_ghostgram_accounts_desc());
-
-	builder.addSubsectionTitle(tr::lng_ghostgram_ui_upravlenie_akkauntami());
-
-	AddSettingToggle(
-		builder,
-		u"accounts/fast_switch"_q,
-		tr::lng_ghostgram_accounts_fast_switch(),
-		GhostGram::Settings::FastAccountSwitchValue(),
-		GhostGram::Settings::SetFastAccountSwitch,
-		{ u"switch"_q, u"accounts"_q });
-	builder.addDividerText(tr::lng_ghostgram_accounts_fast_switch_about());
 
 	builder.addSubsectionTitle(tr::lng_ghostgram_ui_limit_aktivnykh_podklyucheniy());
 
@@ -862,6 +943,30 @@ void BuildInterfaceCategory(SectionBuilder &builder) {
 				: tr::lng_ghostgram_ui_kontrast_teksta_i_fona_1_slishko(tr::now).arg(value);
 		}));
 
+	builder.addDividerText(
+		ActiveSpec()
+		| rpl::map([](const Theme::Spec &spec) {
+			const auto ratio = Theme::ContrastRatio(
+				spec.msgIn,
+				spec.text);
+			const auto value = QString::number(ratio, 'f', 1);
+			return (ratio >= 4.5)
+				? tr::lng_ghostgram_ui_kontrast_teksta_i_msgin_1_norma(tr::now).arg(value)
+				: tr::lng_ghostgram_ui_kontrast_teksta_i_msgin_1_slishko(tr::now).arg(value);
+		}));
+
+	builder.addDividerText(
+		ActiveSpec()
+		| rpl::map([](const Theme::Spec &spec) {
+			const auto ratio = Theme::ContrastRatio(
+				spec.msgOut,
+				spec.text);
+			const auto value = QString::number(ratio, 'f', 1);
+			return (ratio >= 4.5)
+				? tr::lng_ghostgram_ui_kontrast_teksta_i_msgout_1_norma(tr::now).arg(value)
+				: tr::lng_ghostgram_ui_kontrast_teksta_i_msgout_1_slishko(tr::now).arg(value);
+		}));
+
 	builder.addDivider();
 	builder.addSkip();
 
@@ -1006,15 +1111,6 @@ void BuildMessagesCategory(SectionBuilder &builder) {
 
 	AddSettingToggle(
 		builder,
-		u"messages/anti_recall_mark"_q,
-		tr::lng_ghostgram_anti_recall_mark(),
-		GhostGram::Settings::AntiRecallShowMarkValue(),
-		GhostGram::Settings::SetAntiRecallShowMark,
-		{ u"mark"_q, u"deleted"_q });
-	builder.addDividerText(tr::lng_ghostgram_anti_recall_mark_about());
-
-	AddSettingToggle(
-		builder,
 		u"messages/edit_history"_q,
 		tr::lng_ghostgram_edit_history(),
 		GhostGram::Settings::EditHistoryEnabledValue(),
@@ -1098,19 +1194,7 @@ void BuildPrivacyCategory(SectionBuilder &builder) {
 	const auto controller = builder.controller();
 	builder.addDividerText(tr::lng_settings_ghostgram_privacy_desc());
 
-	builder.addSubsectionTitle(tr::lng_ghostgram_ui_privatnost_pri_obschenii());
-
-	AddSettingToggle(
-		builder,
-		u"privacy/forward_clean"_q,
-		tr::lng_ghostgram_privacy_forward_clean(),
-		GhostGram::Settings::ForwardWithoutQuoteValue(),
-		GhostGram::Settings::SetForwardWithoutQuote,
-		{ u"forward"_q, u"quote"_q });
-	builder.addDividerText(tr::lng_ghostgram_privacy_forward_clean_about());
-
 	builder.addDivider();
-	builder.addSkip();
 
 	builder.addButton({
 		.id = u"privacy/telegram_native"_q,
@@ -1124,18 +1208,20 @@ void BuildPrivacyCategory(SectionBuilder &builder) {
 }
 
 void BuildMediaCategory(SectionBuilder &builder) {
+	const auto controller = builder.controller();
 	builder.addDividerText(tr::lng_settings_ghostgram_media_desc());
 
-	builder.addSubsectionTitle(tr::lng_ghostgram_ui_sokhranenie_mediafaylov());
+	builder.addDivider();
 
-	AddSettingToggle(
-		builder,
-		u"media/preserve_deleted"_q,
-		tr::lng_ghostgram_media_preserve(),
-		GhostGram::Settings::PreserveDeletedMediaValue(),
-		GhostGram::Settings::SetPreserveDeletedMedia,
-		{ u"media"_q, u"cache"_q });
-	builder.addDividerText(tr::lng_ghostgram_media_preserve_about());
+	builder.addButton({
+		.id = u"media/telegram_native"_q,
+		.title = tr::lng_settings_advanced(),
+		.icon = { &st::menuIconDownload },
+		.onClick = [=] {
+			controller->showSettings(LocalStorageId());
+		},
+		.keywords = { u"storage"_q, u"cache"_q, u"media"_q },
+	});
 }
 
 void BuildNotificationsCategory(SectionBuilder &builder) {
@@ -1234,6 +1320,16 @@ void BuildToolsCategory(SectionBuilder &builder) {
 		.keywords = { u"bookmarks"_q, u"stats"_q },
 	});
 
+	builder.addButton({
+		.id = u"tools/chat_notes_view"_q,
+		.title = tr::lng_ghostgram_ui_zametki_k_chatam(),
+		.st = &st::settingsButtonNoIcon,
+		.onClick = [=] {
+			ShowChatNotesBox(controller);
+		},
+		.keywords = { u"notes"_q, u"chats"_q },
+	});
+
 	AddSettingToggle(
 		builder,
 		u"tools/chat_notes"_q,
@@ -1305,9 +1401,16 @@ void BuildBackupCategory(SectionBuilder &builder) {
 		.title = tr::lng_ghostgram_ui_sbrosit_nastroyki_ghostgram_po_u(),
 		.icon = { &st::menuIconClear },
 		.onClick = [=] {
-			GhostGram::Settings::ResetToDefaults();
-			controller->show(Ui::MakeInformBox(
-				tr::lng_ghostgram_ui_nastroyki_ghostgram_sbrosheny_na(tr::now)));
+			controller->show(Ui::MakeConfirmBox({
+				.text = tr::lng_ghostgram_ui_sbrosit_vse_nastroyki_vopros(tr::now),
+				.confirmed = [=](Fn<void()> close) {
+					GhostGram::Settings::ResetToDefaults();
+					close();
+					controller->show(Ui::MakeInformBox(
+						tr::lng_ghostgram_ui_nastroyki_ghostgram_sbrosheny_na(tr::now)));
+				},
+				.confirmText = tr::lng_ghostgram_ui_sbrosit(tr::now),
+			}));
 		},
 		.keywords = { u"reset"_q, u"defaults"_q },
 	});
@@ -1322,23 +1425,17 @@ void BuildAdvancedCategory(SectionBuilder &builder) {
 
 	builder.addSubsectionTitle(tr::lng_ghostgram_ui_set_i_otladka());
 
-	AddSettingToggle(
-		builder,
-		u"advanced/block_telemetry"_q,
-		tr::lng_ghostgram_privacy_block_telemetry(),
-		GhostGram::Settings::BlockTelemetryValue(),
-		GhostGram::Settings::SetBlockTelemetry,
-		{ u"telemetry"_q, u"network"_q });
-	builder.addDividerText(tr::lng_ghostgram_privacy_block_telemetry_about());
-
-	AddSettingToggle(
-		builder,
-		u"advanced/show_peer_id"_q,
-		tr::lng_ghostgram_show_peer_id(),
-		GhostGram::Settings::ShowPeerIdValue(),
-		GhostGram::Settings::SetShowPeerId,
-		{ u"peer"_q, u"id"_q, u"debug"_q });
-	builder.addDividerText(tr::lng_ghostgram_show_peer_id_about());
+	builder.addButton({
+		.id = u"advanced/open_data_folder"_q,
+		.title = tr::lng_ghostgram_ui_otkryt_papku_dannykh(),
+		.st = &st::settingsButtonNoIcon,
+		.onClick = [=] {
+			const auto path = QStandardPaths::writableLocation(
+				QStandardPaths::AppLocalDataLocation);
+			QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+		},
+		.keywords = { u"data"_q, u"folder"_q, u"debug"_q },
+	});
 }
 
 void BuildAboutCategory(SectionBuilder &builder) {

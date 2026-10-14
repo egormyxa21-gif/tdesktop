@@ -80,7 +80,7 @@ void Put(Colors &out, const char *key, const QColor &color) {
 	out.append({ QString::fromLatin1(key), Hex(color) });
 }
 
-Colors Generate(const Spec &spec) {
+Colors Generate(const Spec &spec, bool ensureReadable) {
 	// WHY: hover/ripple flip direction on light backgrounds, matching the
 	// official day palette where hover darkens instead of lightening.
 	const auto shade = spec.dark ? QColor(0xff, 0xff, 0xff) : QColor(0x00, 0x00, 0x00);
@@ -245,7 +245,10 @@ Colors Generate(const Spec &spec) {
 	Put(out, "emojiIconFg", dim);
 	Put(out, "emojiIconFgActive", accentBright);
 
-	Put(out, "historyTextOutFg", Mix(text, bg, 0.06));
+	Put(out, "historyTextInFg", ensureReadable ? EnsureReadable(msgIn, text) : text);
+	Put(out, "historyTextOutFg", ensureReadable
+		? EnsureReadable(msgOut, Mix(text, bg, 0.06))
+		: Mix(text, bg, 0.06));
 	Put(out, "historyLinkInFg", accentBright);
 	Put(out, "historyLinkInFgSelected", Mix(accent, onAccent, 0.55));
 	Put(out, "historyLinkOutFg", Mix(accent, onAccent, 0.40));
@@ -265,15 +268,23 @@ Colors Generate(const Spec &spec) {
 	Put(out, "historyToDownFg", Mix(bg, text, 0.65));
 
 	Put(out, "msgInBg", msgIn);
-	Put(out, "msgInBgSelected", Mix(msgIn, accent, 0.50));
+	Put(out, "msgInBgSelected", ensureReadable
+		? EnsureReadableBackground(bg, text, Mix(msgIn, accent, 0.50))
+		: Mix(msgIn, accent, 0.50));
 	Put(out, "msgOutBg", msgOut);
-	Put(out, "msgOutBgSelected", Mix(msgOut, accent, 0.50));
+	Put(out, "msgOutBgSelected", ensureReadable
+		? EnsureReadableBackground(bg, text, Mix(msgOut, accent, 0.50))
+		: Mix(msgOut, accent, 0.50));
 	Put(out, "msgSelectOverlay", WithAlpha(accent, 0x4c));
 	Put(out, "msgStickerOverlay", WithAlpha(accent, 0x7f));
 	Put(out, "msgInServiceFg", accentBright);
 	Put(out, "msgOutServiceFg", Mix(accentBright, onAccent, 0.30));
-	Put(out, "msgInDateFg", Mix(msgIn, text, 0.42));
-	Put(out, "msgOutDateFg", Mix(msgOut, text, 0.45));
+	Put(out, "msgInDateFg", ensureReadable
+		? EnsureReadable(msgIn, Mix(msgIn, text, 0.42))
+		: Mix(msgIn, text, 0.42));
+	Put(out, "msgOutDateFg", ensureReadable
+		? EnsureReadable(msgOut, Mix(msgOut, text, 0.45))
+		: Mix(msgOut, text, 0.45));
 	Put(out, "msgServiceBg", WithAlpha(Mix(bg, shade, 0.06), 0xd5));
 	Put(out, "msgServiceBgSelected", Mix(bg, accent, 0.75));
 	Put(out, "msgInReplyBarColor", accent);
@@ -433,11 +444,40 @@ QColor EnsureReadable(const QColor &bg, const QColor &fg) {
 	return Mix(fg, toward, high);
 }
 
+// WHY: mixing the bubble background toward the window background (which is
+// already readable with the text) converges, because both endpoints are
+// readable; this preserves the user's text color and changes the bubble
+// as little as possible.
+QColor EnsureReadableBackground(
+		const QColor &windowBg,
+		const QColor &fg,
+		const QColor &bg) {
+	if (ContrastRatio(bg, fg) >= kMinimumReadableContrast) {
+		return bg;
+	}
+	auto low = 0.;
+	auto high = 1.;
+	for (auto i = 0; i < 24; ++i) {
+		const auto middle = (low + high) / 2.;
+		if (ContrastRatio(Mix(bg, windowBg, middle), fg) >= kMinimumReadableContrast) {
+			high = middle;
+		} else {
+			low = middle;
+		}
+	}
+	return Mix(bg, windowBg, high);
+}
+
 Spec EnsureReadableSpec(Spec spec) {
 	spec.text = EnsureReadable(spec.bg, spec.text);
 	spec.textSubtle = EnsureReadable(spec.bg, spec.textSubtle);
 	spec.danger = EnsureReadable(spec.bg, spec.danger);
 	spec.success = EnsureReadable(spec.bg, spec.success);
+	// WHY: chat bubbles share the window text color, so a bubble background
+	// that clashes with the text hides message text even when the window
+	// background itself is fine.
+	spec.msgIn = EnsureReadableBackground(spec.bg, spec.text, spec.msgIn);
+	spec.msgOut = EnsureReadableBackground(spec.bg, spec.text, spec.msgOut);
 	return spec;
 }
 
@@ -539,8 +579,8 @@ std::optional<Spec> PresetSpec(Settings::ThemePreset preset) {
 		return Spec{
 			u"solarized"_q, true,
 			QColor(u"#002b36"_q), QColor(u"#268bd2"_q),
-			QColor(u"#073642"_q), QColor(u"#0b4a58"_q),
-			QColor(u"#93a1a1"_q), QColor(u"#657b83"_q),
+			QColor(u"#073642"_q), QColor(u"#062e38"_q),
+			QColor(u"#93a1a1"_q), QColor(u"#83a0a8"_q),
 			QColor(u"#dc322f"_q), QColor(u"#859900"_q) };
 	case P::Daylight:
 		return Spec{
@@ -590,13 +630,17 @@ Spec SpecWithOverrides(
 	return result;
 }
 
-QByteArray BuildPalette(const Spec &spec) {
-	return Merge(Template(spec.dark), Generate(spec));
+QByteArray BuildPalette(Spec spec, bool ensureReadable) {
+	// WHY: the template family must match the actual background polarity,
+	// otherwise hover/shade directions and fallback text colors flip when
+	// the background is edited without updating the stored dark flag.
+	spec.dark = (spec.bg.lightness() < 128);
+	return Merge(Template(spec.dark), Generate(spec, ensureReadable));
 }
 
 QByteArray BuildPresetPalette(Settings::ThemePreset preset) {
 	const auto spec = PresetSpec(preset);
-	return spec ? BuildPalette(*spec) : QByteArray();
+	return spec ? BuildPalette(*spec, true) : QByteArray();
 }
 
 std::optional<Spec> ParseSpec(const QByteArray &json) {

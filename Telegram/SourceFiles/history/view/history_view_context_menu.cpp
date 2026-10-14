@@ -1428,9 +1428,10 @@ void AddMessageActions(
 	if (GhostGram::Settings::BookmarksEnabled() && request.item && request.selectedItems.empty()) {
 		const auto itemId = request.item->fullId();
 		const auto itemText = request.item->originalText().text;
-		menu->addAction(u"В закладки GhostGram"_q, [=] {
+		menu->addAction(tr::lng_ghostgram_ui_v_zakladki(tr::now), [=] {
 			GhostGram::History::SaveBookmark(itemId, itemText);
-			list->controller()->show(Ui::MakeInformBox(u"Сообщение сохранено в локальные закладки GhostGram."_q));
+			list->controller()->show(Ui::MakeInformBox(
+				tr::lng_ghostgram_ui_dobavleno_v_zakladki(tr::now)));
 		}, &st::menuIconFave);
 	}
 }

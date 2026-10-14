@@ -447,6 +447,28 @@ QString GetChatNote(PeerId peerId) {
 	return (it != state.chatNotes.end()) ? it->second : QString();
 }
 
+std::vector<std::pair<PeerId, QString>> GetChatNotes() {
+	auto &state = GetState();
+	std::lock_guard<std::mutex> lock(state.mutex);
+	LoadIfNeeded(state);
+
+	auto result = std::vector<std::pair<PeerId, QString>>();
+	result.reserve(state.chatNotes.size());
+	for (const auto &[peer, text] : state.chatNotes) {
+		result.emplace_back(peer, text);
+	}
+	return result;
+}
+
+void ClearChatNotes() {
+	auto &state = GetState();
+	std::lock_guard<std::mutex> lock(state.mutex);
+	LoadIfNeeded(state);
+
+	state.chatNotes.clear();
+	SaveToDisk(state);
+}
+
 BulkDestroyGuard::BulkDestroyGuard() {
 	g_bulkDestroyDepth.fetch_add(1, std::memory_order_relaxed);
 }
