@@ -104,8 +104,36 @@ jobs:
       - name: Clone.
         uses: actions/checkout@v7
         with:
-          submodules: recursive
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      # WHY: checkout's own submodule fetch aborts the whole job on a single
+      # network blip; plain git retries and keeps already fetched modules.
+      - name: Submodules with retries.
+        shell: pwsh
+        working-directory: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+        run: |
+          git submodule sync --recursive
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "::error::git submodule sync failed with exit code $LASTEXITCODE."
+            exit $LASTEXITCODE
+          }
+          $maxAttempts = 5
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Output "git submodule update attempt $attempt of $maxAttempts."
+            git submodule update --init --force --depth=1 --recursive
+            if ($LASTEXITCODE -eq 0) {
+              Write-Output 'All submodules are up to date.'
+              exit 0
+            }
+            if ($attempt -eq $maxAttempts) {
+              $code = $LASTEXITCODE
+              Write-Output "::error::git submodule update failed after $maxAttempts attempts with exit code $code. See the git output above for the original error."
+              exit $code
+            }
+            $pause = 10 * [math]::Pow(2, $attempt)
+            Write-Output "Attempt $attempt failed with exit code $LASTEXITCODE; retrying in $pause seconds."
+            Start-Sleep -Seconds $pause
+          }
 
       - name: First set up.
         shell: bash
